@@ -6,7 +6,7 @@ Project use python reimplementation of my previous [raytracer](https://github.co
 ## Features ##
 - FullColor 24bit display in terminal
 - No external package dependencies
-- Low res pixelated graphics
+- Low res (63x63) pixelated graphics
 
 <a href="https://asciinema.org/a/297924" class="float:right">
 <img src="https://asciinema.org/a/297924.svg" width="500" alt="asciicast">
