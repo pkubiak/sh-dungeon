@@ -49,28 +49,38 @@ class PNMLoader:
                  crop_to: Optional[Rect] = None,
                  transparency: Optional[Color3i] = None) -> 'Image':
         """
-        Read texture from P3 (RGB ascii) PNM format.
+        Read texture from P3 (RGB ascii) or P6 (RGB raw) PNM format.
         
         @param path:
         @param crop_to:
         @param transparency:
         """
-        with open(path) as file:
+        with open(path, 'rb') as file:
             lines = [line.strip() for line in file]
-            lines = [line for line in lines if not line.startswith('#')]  # remove comments
+            lines = [line for line in lines if not line.startswith(b'#')]  # remove comments
 
-            assert lines[0] == 'P3'        
+            assert lines[0] in (b'P3', b'P6')
             width, height = map(int, lines[1].split())
-            assert lines[2] == '255'
+            assert lines[2] == b'255'
 
             # Read colors info
             values = []
-            for pos in range(3, len(lines), 3):
-                r, g, b = map(int, lines[pos: pos+3])
+            if lines[0] == b'P3':
+                # Read image in Ascii encoding
+                for pos in range(3, len(lines), 3):
+                    r, g, b = map(int, lines[pos: pos+3])
+                    
+                    color = (r/255, g/255, b/255, 0.0 if (r, g, b) == transparency else 1.0)
+                    values.append(color)
+            else:
+                # Read image in raw encoding
+                data = b''.join(lines[3:])
+                for pos in range(0, len(data), 3):
+                    r, g, b = data[pos: pos+3]
+                    
+                    color = (r/255, g/255, b/255, 0.0 if (r, g, b) == transparency else 1.0)
+                    values.append(color)
                 
-                color = (r/255, g/255, b/255, 0.0 if (r, g, b) == transparency else 1.0)
-                values.append(color)
-            
             assert len(values) == width * height
 
         # Build Image instance
