@@ -38,7 +38,7 @@ LEVEL = """\
 
 LEVEL = """\
 #####
-#   #
+#   D
 #  ##
 #   #
 #####\
@@ -50,22 +50,27 @@ def build_scene():
     mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(0.0, 1.0, 0.0), Point3f(1.0, 0.0, 0.0))
 
     dummy = DummyMaterial()
-    sky_tex = ConstantTexture(Color4f(183/255, 225/255, 243/255, 1.0))
+
+    # Sky
+    # sky_tex = ConstantTexture(Color4f(183/255, 225/255, 243/255, 1.0))
     sky_tex = ImageTexture(Image.from_pnm('./gfx/sky.pnm'), border_handling=ImageTexture.BORDER_REPEAT, interpolation=ImageTexture.INTERPOLATION_LINEAR)
     sky_mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(10+width, 0.0, 0.0), Point3f(0.0, 20+height, 0.0))
+    sky = FlatMaterial(sky_tex)
 
-    floor_tex = ConstantTexture(Color4f(170/255, 211/255, 86/255, 1.0))
+    # Floor
+    # floor_tex = ConstantTexture(Color4f(170/255, 211/255, 86/255, 1.0))
     floor_tex = ImageTexture(Image.from_pnm('./gfx/grass3.pnm'), border_handling=ImageTexture.BORDER_REPEAT)
     floor_mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(20+width, 0.0, 0.0), Point3f(0.0, 20+height, 0.0))
-
-
-    wall_tex = ImageTexture(Image.from_pnm('./gfx/wall3.pnm'),)
-    # wall_tex = ConstantTexture(Color4f(0.5, 0.5, 0.5, 1.0))
-
-    # wall = PhongMaterial(wall_tex, 0.1)
-    sky = FlatMaterial(sky_tex)
-    wall = FlatMaterial(wall_tex)
     floor = FlatMaterial(floor_tex)
+
+    # Door
+    door_tex = ImageTexture(Image.from_pnm('./gfx/doors.pnm'))
+    door = FlatMaterial(door_tex)
+
+    # Wall
+    # wall_tex = ConstantTexture(Color4f(0.5, 0.5, 0.5, 1.0))
+    wall_tex = ImageTexture(Image.from_pnm('./gfx/wall3.pnm'),)
+    wall = FlatMaterial(wall_tex)
 
     if DEBUG:
         sky = wall = floor = dummy
@@ -79,16 +84,22 @@ def build_scene():
     s.add(Quad(Point3f(-10, 0, -10), Vector3f(20+width, 0, 0), Vector3f(0, 0, 20 + height), material=floor, coord_mapper=floor_mapper))
 
     # horizontal walls 
+    tex_mapping = {
+        '#': wall,
+        'D': door,
+    }
     for y in range(height+1):
         for x in range(width):
-            if LEVEL[2*y][2*x+1] == '#':
-                q = Quad(Point3f(x, 0, y), Vector3f(0, -1, 0), Vector3f(1, 0, 0), material=wall, coord_mapper=mapper)
+            c = LEVEL[2*y][2*x+1]
+            if c != ' ':
+                q = Quad(Point3f(x, -1, y), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=tex_mapping[c], coord_mapper=mapper)
                 s.add(q)
     # vertical walls
     for y in range(height):
         for x in range(width+1):
-            if LEVEL[2*y+1][2*x] == '#':
-                q = Quad(Point3f(x, 0, y), Vector3f(0, -1, 0), Vector3f(0, 0, 1), material=wall, coord_mapper=mapper)
+            c = LEVEL[2*y+1][2*x]
+            if c != ' ':
+                q = Quad(Point3f(x, -1, y), Vector3f(0, 1, 0), Vector3f(0, 0, 1), material=tex_mapping[c], coord_mapper=mapper)
                 s.add(q)
     return s
 
