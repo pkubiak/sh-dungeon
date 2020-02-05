@@ -55,9 +55,13 @@ class Screen:
         ]
 
         wrt("\033[?47h")  # save current screen
+        wrt("\033[?25l")  # Hide cursor
+        sys.stdout.flush()
 
     def close(self):
         wrt("\033[?47l")  # save current screen
+        wrt("\033[?25h")  # Show cursor
+        sys.stdout.flush()
 
     def __setitem__(self, coords, value):
         x, y = coords
@@ -164,8 +168,8 @@ class Screen:
 
                 wrt(f"\033[48;2;{r};{g};{b}m%s\033[0m" % self.BLOCK)  # print block in given RGB color
 
-            wrt('\n')
-        wrt('\033[0m')  # reset all formating
+        wrt("\033[H")
+        sys.stdout.flush()
 
     def imshow(self, texture: Image, offset: Tuple[int, int] = (0, 0)):
         ox, oy = offset
