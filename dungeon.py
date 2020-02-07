@@ -44,7 +44,10 @@ D               #
 ######\
 #""".split("\n")
 
+TEXTURES = {}
+
 def build_scene(tileset):
+    global TEXTURES
     width, height = len(LEVEL[0])//2, len(LEVEL)//2
 
     mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(0.0, 1.0, 0.0), Point3f(1.0, 0.0, 0.0))
@@ -64,19 +67,10 @@ def build_scene(tileset):
     floor_mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(20+width, 0.0, 0.0), Point3f(0.0, 20+height, 0.0))
     floor = FlatMaterial(floor_tex)
 
-    # Door
-    # door_tex = ImageTexture(Image.from_pnm('./gfx/doors.pnm'))
-    # door = FlatMaterial(door_tex)
-
-    # Wall
-    # wall_tex = ConstantTexture(Color4f(0.5, 0.5, 0.5, 1.0))
-    # wall_tex = ImageTexture(Image.from_pnm('./gfx/wall3.pnm'),)
-    # wall = FlatMaterial(wall_tex)
 
     if DEBUG:
         sky = wall = floor = dummy
 
-    # wall = dummy
     s = Scene()
     # add sky
     s.add(Quad(Point3f(-1000,-20, -1000), Vector3f(2000+width, 0, 0), Vector3f(0, 0, 2000+height), material=sky, coord_mapper=sky_mapper))
@@ -88,24 +82,28 @@ def build_scene(tileset):
     mapping = {
         '#': 19*64-20,
         'S': 18*64+32,
-        'D': 15*64+32,
+        'D': 11*64+32-5-4, #15*64+32,
         'd': 15*64+34,
+        'm': 3*64+1
     }
 
-    tex_mapping = {key: FlatMaterial(ImageTexture(tileset[value])) for key, value in mapping.items()}
+    TEXTURES = {key: FlatMaterial(ImageTexture(tileset[value])) for key, value in mapping.items()}
 
+    monster = Quad(Point3f(0, -1, 2.75), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=TEXTURES['m'], coord_mapper=mapper)
+    s.add(monster)
+    
     for y in range(height+1):
         for x in range(width):
             c = LEVEL[2*y][2*x+1]
             if c != ' ':
-                q = Quad(Point3f(x, -1, y), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=tex_mapping[c], coord_mapper=mapper)
+                q = Quad(Point3f(x, -1, y), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=TEXTURES[c], coord_mapper=mapper)
                 s.add(q)
     # vertical walls
     for y in range(height):
         for x in range(width+1):
             c = LEVEL[2*y+1][2*x]
             if c != ' ':
-                q = Quad(Point3f(x, -1, y), Vector3f(0, 1, 0), Vector3f(0, 0, 1), material=tex_mapping[c], coord_mapper=mapper)
+                q = Quad(Point3f(x, -1, y), Vector3f(0, 1, 0), Vector3f(0, 0, 1), material=TEXTURES[c], coord_mapper=mapper)
                 s.add(q)
     return s
 
@@ -148,12 +146,13 @@ if __name__ == '__main__':
         while True:
             if states:
                 pos_x, pos_y, pos_z, ang = states[0]
+                prev_state = states[0]
                 states = states[1:]
                 torch.position = Point3f(pos_x, pos_y, pos_z)
 
-                view_angle = 100 / 180 * math.pi
-
-                camera = PerspectiveCamera(Point3f(pos_x, pos_y, pos_z), Vector3f(math.sin(ang), 0, math.cos(ang)), Vector3f(0, 1, 0), view_angle, view_angle)
+                view_angle = 90 / 180 * math.pi
+                forward = Vector3f(math.sin(ang), 0, math.cos(ang))
+                camera = PerspectiveCamera(Point3f(pos_x, pos_y, pos_z) + (-0.25*forward), forward, Vector3f(0, 1, 0), view_angle, view_angle)
 
                 r = Renderer(camera, integrator)
                 r.render(output)
@@ -187,6 +186,9 @@ if __name__ == '__main__':
                     item_idx = (item_idx + (1 if key == '>' else -1)) % len(items)
                     item = items[item_idx].hflip().scale(2)
                     states.append((pos_x, pos_y, pos_z, ang))
+                if key == 'e':
+                    TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5])
+                    states.append(prev_state)
                 if key == '?':
                     if show_item:
                         for i in range(8):
