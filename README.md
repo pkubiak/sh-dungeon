@@ -11,7 +11,7 @@ Pypy3 is recommended python runtime.
 - Low res (63x63) pixelated graphics
 
 <a href="https://asciinema.org/a/298860" class="float:right">
-<img src="https://asciinema.org/a/298860.svg" width="250" alt="asciicast">
+<img src="https://asciinema.org/a/298860.png" width="300" alt="asciicast">
 </a>
 
 
