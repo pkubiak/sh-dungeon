@@ -177,7 +177,7 @@ class Screen:
             for x in range(image.width):
                 if (0 <= x + ox < self.width) and (0 <= y + oy < self.height):
                     *c, alpha = image[x, y]
-                    
+
                     if alpha == 1.0:
                         self[x+ox, y+oy] = (int(255*c[0]), int(255*c[1]), int(255*c[2]))
                     elif alpha == 0.0:
@@ -189,3 +189,22 @@ class Screen:
         for y in range(self.height):
             for x in range(self.width):
                 self[x, y] = color
+
+class SubPixelScreen(Screen):
+    def sync(self):
+        #wrt("\033[2J")  # clear entire screen
+        for y in range(self.height//2):
+            wrt("\033[%d;%dH" % (1 + y+self.offset[1], 1 + 2 * self.offset[0]))  # move cursor to start of yth row
+            for x in range(self.width):
+                r, g, b, _ = self.data[2*y][x]
+                r2, g2, b2, _ = self.data[2*y+1][x]
+
+                # if blink:
+                #     r2, g2, b2, _ = lighten((r, g, b, True),0.6)
+                #     wrt(f"\033[5m\033[48;2;{r2};{g2};{b2}m") # blinking color
+
+                wrt(f"\033[48;2;{r};{g};{b}m\033[38;2;{r2};{g2};{b2}m▄")  # print block in given RGB color
+            wrt('\033[0m')
+            sys.stdout.flush()
+        wrt("\033[H")
+        sys.stdout.flush()

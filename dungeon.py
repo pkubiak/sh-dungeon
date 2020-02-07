@@ -6,7 +6,7 @@ from rt.cameras import PerspectiveCamera
 from rt.renderer import Renderer
 from rt.image import Image, Color4f
 from rt.integrators import RayTracingIntegrator
-from screen import Screen
+from screen import Screen, SubPixelScreen
 from keyboard import Keyboard, Keys
 from rt.materials import DummyMaterial, FlatMaterial, PhongMaterial
 from rt.world import World
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     s = build_scene(tileset)
 
     N = 31
-    scr  = Screen(2*N+1, 2*N+1)
+    scr  = SubPixelScreen(2*N+1, 2*N+1)
     output = Image(width=2*N+1, height=2*N+1)
 
     step_length = 1.0
