@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Tuple, Union, Optional, NamedTuple
+from typing import Tuple, Union, Optional, NamedTuple, List
 from .utils import Point3f
 
 Rect = Tuple[int, int, int, int]
@@ -58,8 +58,7 @@ class PNMLoader:
         with open(path, 'rb') as file:
             pos = 0
             lines = file.read().split(b"\n")
-            print(lines[:3])
-            # lines = [line for line in lines if not line.startswith(b'#')]  # remove comments
+
             while lines[pos].strip().startswith(b'#'):
                 pos += 1
             version = lines[pos].strip()
@@ -85,7 +84,7 @@ class PNMLoader:
             else:
                 # Read image in raw encoding
                 data = b'\n'.join(lines[pos:])
-                print('>>>>>>>>>', pos, len(data), width*height*3)
+
                 for i in range(0, width*height):
                     r, g, b = data[3*i: 3*i+3]
                     
@@ -183,12 +182,21 @@ class Image(PNMLoader):
                         out[scale_*x+i, scale_*y+j] = self[x, y]
         return out
 
+    def as_tileset(self, width: int, height: int) -> List['Image']:
+        assert self.width % width == 0
+        assert self.height % height == 0
+        return [
+            self.crop((width*x, height*y, width*(x+1)-1, height*(y+1)-1))
+            for y in range(self.height // height)
+            for x in range(self.width // width)
+        ]
     # def interpolate(self, point: Point3f, *, interpolation: Interpolation = Interpolation.NONE) -> Color4f:
     #     # print(point)
     #     x, y = round((self.width-1) * point.x), round((self.height-1) * point.y)
     #     return self[x, y]
     #     # raise NotImplementedError()
 
+ 
 
 if __name__ == '__main__':
     torch = Image.from_pnm('gfx/torch.pnm')

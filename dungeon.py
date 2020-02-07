@@ -19,11 +19,11 @@ DEBUG = False
 LEVEL = """\
 #################
 D               #
-# ##### ####### #
-# #   # #       #
-# ### # # #######
-#   #   #       #
-# # ########### #
+# #####d####### #
+# #   S S       #
+# #S# # # #######
+#   S   S       #
+# # #S#S####### #
 # #   #     #   #
 # ### # ### # ###
 #   #   #   #   #
@@ -44,7 +44,7 @@ D               #
 ######\
 #""".split("\n")
 
-def build_scene():
+def build_scene(tileset):
     width, height = len(LEVEL[0])//2, len(LEVEL)//2
 
     mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(0.0, 1.0, 0.0), Point3f(1.0, 0.0, 0.0))
@@ -59,18 +59,19 @@ def build_scene():
 
     # Floor
     # floor_tex = ConstantTexture(Color4f(170/255, 211/255, 86/255, 1.0))
-    floor_tex = ImageTexture(Image.from_pnm('./gfx/grass3.pnm'), border_handling=ImageTexture.BORDER_REPEAT)
+    # Image.from_pnm('./gfx/grass3.pnm')
+    floor_tex = ImageTexture(tileset[13*64+18], border_handling=ImageTexture.BORDER_REPEAT)
     floor_mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(20+width, 0.0, 0.0), Point3f(0.0, 20+height, 0.0))
     floor = FlatMaterial(floor_tex)
 
     # Door
-    door_tex = ImageTexture(Image.from_pnm('./gfx/doors.pnm'))
-    door = FlatMaterial(door_tex)
+    # door_tex = ImageTexture(Image.from_pnm('./gfx/doors.pnm'))
+    # door = FlatMaterial(door_tex)
 
     # Wall
     # wall_tex = ConstantTexture(Color4f(0.5, 0.5, 0.5, 1.0))
-    wall_tex = ImageTexture(Image.from_pnm('./gfx/wall3.pnm'),)
-    wall = FlatMaterial(wall_tex)
+    # wall_tex = ImageTexture(Image.from_pnm('./gfx/wall3.pnm'),)
+    # wall = FlatMaterial(wall_tex)
 
     if DEBUG:
         sky = wall = floor = dummy
@@ -84,10 +85,15 @@ def build_scene():
     s.add(Quad(Point3f(-10, 0, -10), Vector3f(20+width, 0, 0), Vector3f(0, 0, 20 + height), material=floor, coord_mapper=floor_mapper))
 
     # horizontal walls
-    tex_mapping = {
-        '#': wall,
-        'D': door,
+    mapping = {
+        '#': 19*64-20,
+        'S': 18*64+32,
+        'D': 15*64+32,
+        'd': 15*64+34,
     }
+
+    tex_mapping = {key: FlatMaterial(ImageTexture(tileset[value])) for key, value in mapping.items()}
+
     for y in range(height+1):
         for x in range(width):
             c = LEVEL[2*y][2*x+1]
@@ -107,7 +113,9 @@ if __name__ == '__main__':
     def random_point():
         return Point3f(random.random(), random.random(), random.random())
 
-    s = build_scene()
+    tileset = Image.from_pnm('./gfx/tileset.pnm', transparency=(0,255,255)).as_tileset(32,32)
+    
+    s = build_scene(tileset)
 
     N = 31
     scr  = Screen(2*N+1, 2*N+1)
@@ -128,15 +136,11 @@ if __name__ == '__main__':
     if DEBUG:
         integrator.world.lights.extend([torch, blue_light])
 
-    items = Image.from_pnm('gfx/swords2.pnm', transparency=(0, 255, 255))
-
-    items = [
-        items.crop((32*x, 32*y, 32*x+31, 32*y+31)).hflip().scale(2)
-        for x in range(items.width // 32)
-        for y in range(items.height // 32)
-    ]
+    items = Image.from_pnm('gfx/swords2.pnm', transparency=(0, 255, 255)).as_tileset(32, 32)
 
     item_idx = 0
+    item = items[item_idx].hflip().scale(2)
+    show_item = True
 
     try:
         Keyboard.init()
@@ -155,7 +159,8 @@ if __name__ == '__main__':
                 r.render(output)
 
                 scr.imshow(output)
-                scr.imshow(items[item_idx], (8, 16))
+                if show_item:
+                    scr.imshow(item, (8, 16))
                 scr.sync()
             else:
                 key = Keyboard.getch()
@@ -180,7 +185,23 @@ if __name__ == '__main__':
                     states.append((pos_x, pos_y, pos_z, ang))
                 if key in '<>':
                     item_idx = (item_idx + (1 if key == '>' else -1)) % len(items)
+                    item = items[item_idx].hflip().scale(2)
                     states.append((pos_x, pos_y, pos_z, ang))
+                if key == '?':
+                    if show_item:
+                        for i in range(8):
+                            scr.imshow(output)
+                            scr.imshow(item, (8, 16 + 8 * i))
+                            scr.sync()
+                            time.sleep(0.1)
+                        show_item = False
+                    else:
+                        for i in reversed(range(8)):
+                            scr.imshow(output)
+                            scr.imshow(item, (8, 16 + 8 * i))
+                            scr.sync()
+                            time.sleep(0.1)
+                        show_item = True
                 if key == Keys.ESC:
                     break
 
