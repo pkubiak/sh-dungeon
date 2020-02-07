@@ -56,27 +56,38 @@ class PNMLoader:
         @param transparency:
         """
         with open(path, 'rb') as file:
-            lines = [line.strip() for line in file]
-            lines = [line for line in lines if not line.startswith(b'#')]  # remove comments
-
-            assert lines[0] in (b'P3', b'P6')
-            width, height = map(int, lines[1].split())
-            assert lines[2] == b'255'
+            pos = 0
+            lines = file.read().split(b"\n")
+            print(lines[:3])
+            # lines = [line for line in lines if not line.startswith(b'#')]  # remove comments
+            while lines[pos].strip().startswith(b'#'):
+                pos += 1
+            version = lines[pos].strip()
+            assert version in (b'P3', b'P6')
+            pos += 1
+            while lines[pos].strip().startswith(b'#'):
+                pos += 1
+            width, height = map(int, lines[pos].strip().split())
+            pos += 1
+            while lines[pos].strip().startswith(b'#'):
+                pos += 1
+            assert lines[pos].strip() == b'255'
+            pos += 1
 
             # Read colors info
             values = []
-            if lines[0] == b'P3':
+            if version == b'P3':
                 # Read image in Ascii encoding
-                for pos in range(3, len(lines), 3):
-                    r, g, b = map(int, lines[pos: pos+3])
-                    
+                for i in range(width*height):
+                    r, g, b = map(int, lines[pos+3*i: pos+3*i+3])
                     color = (r/255, g/255, b/255, 0.0 if (r, g, b) == transparency else 1.0)
                     values.append(color)
             else:
                 # Read image in raw encoding
-                data = b''.join(lines[3:])
-                for pos in range(0, len(data), 3):
-                    r, g, b = data[pos: pos+3]
+                data = b'\n'.join(lines[pos:])
+                print('>>>>>>>>>', pos, len(data), width*height*3)
+                for i in range(0, width*height):
+                    r, g, b = data[3*i: 3*i+3]
                     
                     color = (r/255, g/255, b/255, 0.0 if (r, g, b) == transparency else 1.0)
                     values.append(color)
@@ -152,12 +163,31 @@ class Image(PNMLoader):
                 texture[x - x0, y - y0] = self[x,y]
 
         return texture
+    
+    def hflip(self) -> 'Image':
+        out = Image(width=self.width, height=self.height)
+        for y in range(self.height):
+            for x in range(self.width):
+                out[x, y] = self[self.width - 1 - x, y]
+        return out
 
-    def interpolate(self, point: Point3f, *, interpolation: Interpolation = Interpolation.NONE) -> Color4f:
-        # print(point)
-        x, y = round((self.width-1) * point.x), round((self.height-1) * point.y)
-        return self[x, y]
-        # raise NotImplementedError()
+    def scale(self, scale_: int) -> 'Image':
+        assert isinstance(scale_, int) and scale_ > 0
+
+        out = Image(width=scale_*self.width, height=scale_*self.height)
+        
+        for y in range(self.height):
+            for x in range(self.width):
+                for i in range(scale_):
+                    for j in range(scale_):
+                        out[scale_*x+i, scale_*y+j] = self[x, y]
+        return out
+
+    # def interpolate(self, point: Point3f, *, interpolation: Interpolation = Interpolation.NONE) -> Color4f:
+    #     # print(point)
+    #     x, y = round((self.width-1) * point.x), round((self.height-1) * point.y)
+    #     return self[x, y]
+    #     # raise NotImplementedError()
 
 
 if __name__ == '__main__':

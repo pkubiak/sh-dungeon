@@ -18,7 +18,7 @@ DEBUG = False
 
 LEVEL = """\
 #################
-#               #
+D               #
 # ##### ####### #
 # #   # #       #
 # ### # # #######
@@ -36,13 +36,13 @@ LEVEL = """\
 #################\
 """.split("\n")
 
-LEVEL = """\
-#####
-#   D
-#  ##
-#   #
-#####\
-""".split("\n")
+#LEVEL = """\
+######
+##   D
+##  ##
+##   #
+######\
+#""".split("\n")
 
 def build_scene():
     width, height = len(LEVEL[0])//2, len(LEVEL)//2
@@ -83,7 +83,7 @@ def build_scene():
     # add ground
     s.add(Quad(Point3f(-10, 0, -10), Vector3f(20+width, 0, 0), Vector3f(0, 0, 20 + height), material=floor, coord_mapper=floor_mapper))
 
-    # horizontal walls 
+    # horizontal walls
     tex_mapping = {
         '#': wall,
         'D': door,
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     dof = 100
     states = [(0.5, -0.5, 0.5, -math.pi)]
     FPT = 5
-    
+
     torch_color = Color4f(1.0, 0.95, 0.8, 1.0)
     torch_intensity = 0.5
 
@@ -127,6 +127,16 @@ if __name__ == '__main__':
 
     if DEBUG:
         integrator.world.lights.extend([torch, blue_light])
+
+    items = Image.from_pnm('gfx/swords2.pnm', transparency=(0, 255, 255))
+
+    items = [
+        items.crop((32*x, 32*y, 32*x+31, 32*y+31)).hflip().scale(2)
+        for x in range(items.width // 32)
+        for y in range(items.height // 32)
+    ]
+
+    item_idx = 0
 
     try:
         Keyboard.init()
@@ -145,6 +155,7 @@ if __name__ == '__main__':
                 r.render(output)
 
                 scr.imshow(output)
+                scr.imshow(items[item_idx], (8, 16))
                 scr.sync()
             else:
                 key = Keyboard.getch()
@@ -166,6 +177,9 @@ if __name__ == '__main__':
                 if key in (Keys.PAGE_UP, Keys.PAGE_DOWN):
                     torch_intensity += 0.1 if key == Keys.PAGE_UP else -0.1
                     torch.intensity = torch_intensity * torch_color
+                    states.append((pos_x, pos_y, pos_z, ang))
+                if key in '<>':
+                    item_idx = (item_idx + (1 if key == '>' else -1)) % len(items)
                     states.append((pos_x, pos_y, pos_z, ang))
                 if key == Keys.ESC:
                     break

@@ -171,13 +171,19 @@ class Screen:
         wrt("\033[H")
         sys.stdout.flush()
 
-    def imshow(self, texture: Image, offset: Tuple[int, int] = (0, 0)):
+    def imshow(self, image: Image, offset: Tuple[int, int] = (0, 0)):
         ox, oy = offset
-        for y in range(texture.height):
-            for x in range(texture.width):
+        for y in range(image.height):
+            for x in range(image.width):
                 if (0 <= x + ox < self.width) and (0 <= y + oy < self.height):
-                    c = texture[x, y][:3]
-                    self[x+ox, y+oy] = (int(255*c[0]), int(255*c[1]), int(255*c[2]))
+                    *c, alpha = image[x, y]
+                    
+                    if alpha == 1.0:
+                        self[x+ox, y+oy] = (int(255*c[0]), int(255*c[1]), int(255*c[2]))
+                    elif alpha == 0.0:
+                        pass
+                    else:
+                        raise NotImplementedError('Alpha Blending')
 
     def clear(self, color=(0,0,0)):
         for y in range(self.height):
