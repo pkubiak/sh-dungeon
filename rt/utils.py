@@ -1,7 +1,6 @@
-from dataclasses import dataclass
+from typing import NamedTuple
 
-@dataclass
-class Vector3f:    
+class Vector3f(NamedTuple):    
     x: float
     y: float
     z: float
@@ -48,8 +47,7 @@ class Vector3f:
         return v0.x * v1.x + v0.y * v1.y + v0.z * v1.z
 
 
-@dataclass
-class Point3f:
+class Point3f(NamedTuple):
     x: float
     y: float
     z: float
@@ -70,8 +68,7 @@ class Point3f:
         raise TypeError()
 
 
-@dataclass
-class Ray:
+class Ray(NamedTuple):
     o: Point3f  # origin
     d: Vector3f  # direction
 

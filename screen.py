@@ -167,7 +167,7 @@ class Screen:
                 #     wrt(f"\033[5m\033[48;2;{r2};{g2};{b2}m") # blinking color
 
                 wrt(f"\033[48;2;{r};{g};{b}m%s\033[0m" % self.BLOCK)  # print block in given RGB color
-
+            sys.stdout.flush()
         wrt("\033[H")
         sys.stdout.flush()
 
