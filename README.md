@@ -3,13 +3,15 @@
 Simple dungeon crawler in terminal using RayTracing engine. 
 Project use python reimplementation of my previous [raytracer](https://github.com/pkubiak/raytracer). 
 
+Pypy3 is recommended python runtime.
+
 ## Features ##
 - FullColor 24bit display in terminal
 - No external package dependencies
 - Low res (63x63) pixelated graphics
 
-<a href="https://asciinema.org/a/297924" class="float:right">
-<img src="https://asciinema.org/a/297924.svg" width="500" alt="asciicast">
+<a href="https://asciinema.org/a/298860" class="float:right">
+<img src="https://asciinema.org/a/298860.svg" width="250" alt="asciicast">
 </a>
 
 
@@ -54,9 +56,9 @@ Project use python reimplementation of my previous [raytracer](https://github.co
     - [ ] Game
     - [ ] Inventory 
     - [ ] ...
-  - [ ] Sprites rendering (npc, enemies, torches, ...)
+  - [x] Sprites rendering (npc, enemies, torches, ...)
   - [ ] Interaction with environment (opening doors, using staircase)
-  - [ ] User handled items (sword, magic staff, ...)
+  - [x] User handled items (sword, magic staff, ...)
   - [ ] NPC / enemies
     - [ ] movements
     - [ ] dialogs
