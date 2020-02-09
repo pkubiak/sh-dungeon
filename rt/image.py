@@ -170,16 +170,19 @@ class Image(PNMLoader):
                 out[x, y] = self[self.width - 1 - x, y]
         return out
 
-    def scale(self, scale_: int) -> 'Image':
-        assert isinstance(scale_, int) and scale_ > 0
+    def scale(self, scale_x: int, scale_y: Optional[int] = None) -> 'Image':
+        if not scale_y:
+            scale_y = scale_x
+            
+        assert isinstance(scale_x, int) and scale_x > 0 and isinstance(scale_y, int) and scale_y > 0
 
-        out = Image(width=scale_*self.width, height=scale_*self.height)
+        out = Image(width=scale_x*self.width, height=scale_y*self.height)
         
         for y in range(self.height):
             for x in range(self.width):
-                for i in range(scale_):
-                    for j in range(scale_):
-                        out[scale_*x+i, scale_*y+j] = self[x, y]
+                for i in range(scale_x):
+                    for j in range(scale_y):
+                        out[scale_x*x+i, scale_y*y+j] = self[x, y]
         return out
 
     def as_tileset(self, width: int, height: int) -> List['Image']:
