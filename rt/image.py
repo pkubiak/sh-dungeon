@@ -8,11 +8,16 @@ Color3i = Tuple[int, int, int]
 Color3f = Tuple[float, float, float]
 
 
-class Color4f(NamedTuple):
+class Color4f():
     r: float
     g: float
     b: float
     a: float
+
+    def __init__(self, r: float, g: float, b: float, a: float = 1.0):
+        assert (0 <= r <= 1.0) and (0 <= g <= 1.0) and (0 <= b <= 1.0) and (0 <= a <= 1.0)
+
+        self.r, self.g, self.b, self.a = r, g, b, a
 
     def __add__(self, other: 'Color4f') -> 'Color4f':
         if isinstance(other, Color4f):
@@ -36,6 +41,15 @@ class Color4f(NamedTuple):
             0.0 if self.b < 0.0 else (1.0 if self.b > 1.0 else self.b),
             0.0 if self.a < 0.0 else (1.0 if self.a > 1.0 else self.a),
         )
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Color4f):
+            return (self.r == other.r and self.g == other.g and self.b == other.b and self.a == other.a)
+        return False
+    
+    @property
+    def as_3i(self):
+        return (int(255 * self.r), int(255 * self.g), int(255 * self.b))
 
 
 class Interpolation(Enum):
@@ -79,7 +93,7 @@ class PNMLoader:
                 # Read image in Ascii encoding
                 for i in range(width*height):
                     r, g, b = map(int, lines[pos+3*i: pos+3*i+3])
-                    color = (r/255, g/255, b/255, 0.0 if (r, g, b) == transparency else 1.0)
+                    color = Color4f(r/255, g/255, b/255, 0.0 if (r, g, b) == transparency else 1.0)
                     values.append(color)
             else:
                 # Read image in raw encoding
@@ -88,7 +102,7 @@ class PNMLoader:
                 for i in range(0, width*height):
                     r, g, b = data[3*i: 3*i+3]
                     
-                    color = (r/255, g/255, b/255, 0.0 if (r, g, b) == transparency else 1.0)
+                    color = Color4f(r/255, g/255, b/255, 0.0 if (r, g, b) == transparency else 1.0)
                     values.append(color)
                 
             assert len(values) == width * height
@@ -126,17 +140,17 @@ class Image(PNMLoader):
 
         self._width = width
         self._height = height
-        self._data = [(1.0, 1.0, 1.0, 1.0)] * (width*height)
+        self._data = [Color4f(1.0, 1.0, 1.0, 1.0)] * (width*height)
 
 
     def __setitem__(self, position: Tuple[int, int], value: Union[Color3f, Color4f]):
-        assert 3<= len(value) <= 4, f"{value}" # RGB or RGBA
+        if isinstance(value, tuple) and len(value) == 3:
+            value = Color4f(*value)
+
+        assert isinstance(value, Color4f), f"{value}"
 
         x, y = position
         assert (0 <= x < self._width) and (0 <= y < self._height)
-
-        if len(value) == 3:  # RGB color
-            value = value + (255, )
 
         self._data[y*self._width + x] = value
 
@@ -145,7 +159,7 @@ class Image(PNMLoader):
         x, y = position
         assert (0 <= x < self._width) and (0 <= y < self._height)
 
-        return Color4f(*self._data[y * self._width + x])
+        return self._data[y * self._width + x]
 
     def crop(self, crop_to: Rect) -> 'Image':
         """

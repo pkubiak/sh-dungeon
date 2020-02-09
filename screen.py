@@ -1,7 +1,9 @@
 import time
 import sys
-from rt.image import Image
+from rt.image import Image, Color4f
 from typing import Tuple
+from font import Font, BOXY_BOLD_FONT_PLUS
+
 
 wrt = sys.stdout.write
 
@@ -42,6 +44,12 @@ DEFAULT_FONT={
     ]),
 }
 
+def blend(background: Color4f, foreground: Color4f) -> Color4f:
+    if foreground.a == 1.0:
+        return foreground
+    return (foreground.a * foreground) + (1 - foreground.a) * background
+
+
 class Screen:
     BLOCK = '  '#██'
 
@@ -65,6 +73,11 @@ class Screen:
         wrt("\033[?25h")  # Show cursor
         sys.stdout.flush()
 
+    def __getitem__(self, coords) -> Color4f:
+        x, y = coords
+        c = self.data[y][x]
+        return Color4f(c[0]/255, c[1]/255, c[2]/255)
+
     def __setitem__(self, coords, value):
         x, y = coords
         assert isinstance(value, tuple) and 3 <= len(value) <= 4
@@ -75,7 +88,7 @@ class Screen:
         else:
             blink = True
 
-        assert (0<=r<=255) and (0<=g<=255) and (0<=b<=255)
+        assert (0<=r<=255) and (0<=g<=255) and (0<=b<=255), f"{value}"
 
         self.data[y][x] = (r, g, b, bool(blink))
 
@@ -146,15 +159,44 @@ class Screen:
             for y in range(y0, y1+1):
                 self[x, y] = color
 
-    def puttext(self, x0, y0, text, color, font=DEFAULT_FONT):
-        offset = 0
+    def puttext(self, x0, y0, text, font_color, *, font: Font = BOXY_BOLD_FONT_PLUS, shadow_color=None):
+        if font.full_color:
+            raise NotImplementedError('Full Color fonts are not supported')
+
+        offset_x = 0
+        offset_y = 0
         for char in text:
-            length, glyph = font[char]
-            for y in range(len(glyph)):
-                for x in range(length):
-                    if glyph[y] & (1<<(length-1-x)):
-                        self[offset+x+x0, y+y0] = color
-            offset += length + 1
+            if char == '\n':
+                offset_x = 0
+                offset_y += font.line_height
+                continue
+            if char == ' ':
+                offset_x += 2
+                continue
+            glyph = font.glyphs[char]
+
+            for y in range(glyph.height):
+                for x in range(glyph.width):
+                    xx, yy = x0+offset_x+x, y0+offset_y+y
+                    if not (0<=xx<self.width and 0<=yy<self.height):
+                        continue
+                    orig_color = self[xx, yy]
+                    color = glyph[x, y]
+                    if color.a == 0.0:
+                        continue
+
+                    if color == font.shadow:
+                        if shadow_color is None:
+                            continue
+                        color = blend(orig_color, shadow_color)
+                    elif color == font.foreground:
+                        color = blend(orig_color, font_color)
+                    else:
+                        raise ValueError(f"{color}")
+
+                    self[x0 + offset_x + x, y0 + offset_y + y] = color.as_3i
+
+            offset_x += glyph.width + font.char_spacing
 
 
     def sync(self):
@@ -177,11 +219,11 @@ class Screen:
         for y in range(image.height):
             for x in range(image.width):
                 if (0 <= x + ox < self.width) and (0 <= y + oy < self.height):
-                    *c, alpha = image[x, y]
+                    color = image[x, y]
 
-                    if alpha == 1.0:
-                        self[x+ox, y+oy] = (int(255*c[0]), int(255*c[1]), int(255*c[2]))
-                    elif alpha == 0.0:
+                    if color.a == 1.0:
+                        self[x+ox, y+oy] = color.as_3i
+                    elif color.a == 0.0:
                         pass
                     else:
                         raise NotImplementedError('Alpha Blending')

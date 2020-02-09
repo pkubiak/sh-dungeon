@@ -13,6 +13,7 @@ from rt.world import World
 from rt.lights import PointLight
 from rt.coordmappers import TriangleMapper
 from rt.textures import ConstantTexture, ImageTexture
+from font import BOXY_BOLD_FONT_PLUS
 
 DEBUG = False
 
@@ -141,6 +142,7 @@ if __name__ == '__main__':
     show_item = True
     door_open = False
 
+
     try:
         Keyboard.init()
 
@@ -161,6 +163,8 @@ if __name__ == '__main__':
                 scr.imshow(output)
                 if show_item:
                     scr.imshow(item, (8, 16))
+                tttt = "     Dungeon\n   - - - - - - -\n Start game\n  Load game\n    Settings\n\n          Exit"
+                scr.puttext(2, 3, tttt, Color4f(1.0, 1.0, 1.0, 1.0), shadow_color=Color4f(0, 0, 0, 0.75))
                 scr.sync()
             else:
                 key = Keyboard.getch()
