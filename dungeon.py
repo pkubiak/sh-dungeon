@@ -91,7 +91,7 @@ def build_scene(tileset):
 
     monster = Quad(Point3f(0, -1, 2.75), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=TEXTURES['m'], coord_mapper=mapper)
     s.add(monster)
-    
+
     for y in range(height+1):
         for x in range(width):
             c = LEVEL[2*y][2*x+1]
@@ -112,7 +112,7 @@ if __name__ == '__main__':
         return Point3f(random.random(), random.random(), random.random())
 
     tileset = Image.from_pnm('./gfx/tileset.pnm', transparency=(0,255,255)).as_tileset(32,32)
-    
+
     s = build_scene(tileset)
 
     N = 31
@@ -136,9 +136,10 @@ if __name__ == '__main__':
 
     items = Image.from_pnm('gfx/swords2.pnm', transparency=(0, 255, 255)).as_tileset(32, 32)
 
-    item_idx = 0
+    item_idx = 1
     item = items[item_idx].hflip().scale(2)
     show_item = True
+    door_open = False
 
     try:
         Keyboard.init()
@@ -163,18 +164,23 @@ if __name__ == '__main__':
                 scr.sync()
             else:
                 key = Keyboard.getch()
-                if key == Keys.UP:
+                if key in (Keys.UP, Keys.DOWN):
+                    mult = 1 if key == Keys.UP else -1
+
+                    new_pos_x = round(2 * pos_x + mult * math.sin(ang) * step_length)
+                    new_pos_z = round(2 * pos_z + mult * math.cos(ang) * step_length)
+                    cell = LEVEL[new_pos_z][new_pos_x]
+                    if cell in (' ', 'd') or (cell == 'D' and door_open):
+                        f = [(i+1)/FPT for i in range(FPT)]
+                    else:
+                        f = [0.1, 0.25, 0.35, 0.20, 0.1, 0.0]
+
+                    for m in f:
+                        states.append((pos_x + mult * math.sin(ang)*step_length * m, pos_y, pos_z + mult * math.cos(ang)*step_length * m, ang))
+                if key in (Keys.LEFT, Keys.RIGHT):
+                    mult = 1 if key == Keys.LEFT else -1
                     for i in range(FPT):
-                        states.append((pos_x +  math.sin(ang)*step_length * (i+1) / FPT, pos_y, pos_z + math.cos(ang)*step_length * (i+1) / FPT, ang))
-                if key == Keys.DOWN:
-                    for i in range(FPT):
-                        states.append((pos_x -  math.sin(ang)*step_length * (i+1) / FPT, pos_y, pos_z - math.cos(ang)*step_length * (i+1) / FPT, ang))
-                if key == Keys.LEFT:
-                    for i in range(FPT):
-                        states.append((pos_x, pos_y, pos_z, ang + math.pi/2 * (i+1) / FPT))
-                if key == Keys.RIGHT:
-                    for i in range(FPT):
-                        states.append((pos_x, pos_y, pos_z, ang - math.pi/2 * (i+1) / FPT))
+                        states.append((pos_x, pos_y, pos_z, ang + mult * math.pi/2 * (i+1) / FPT))
                 if key == Keys.SPACE:
                     for j in [-0.2, -0.3, -0.35, -0.3, -0.2, 0.0]:
                         states.append((pos_x, pos_y + j, pos_z, ang))
@@ -187,7 +193,15 @@ if __name__ == '__main__':
                     item = items[item_idx].hflip().scale(2)
                     states.append((pos_x, pos_y, pos_z, ang))
                 if key == 'e':
-                    TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5])
+                    new_pos_x = round(2 * pos_x + math.sin(ang) * step_length)
+                    new_pos_z = round(2 * pos_z + math.cos(ang) * step_length)
+                    if LEVEL[new_pos_z][new_pos_x] == 'D':
+                        if door_open:
+                            TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5-4])
+                        else:
+                            TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5])
+
+                        door_open = not door_open
                     states.append(prev_state)
                 if key == '?':
                     if show_item:
