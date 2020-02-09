@@ -15,7 +15,7 @@ def lighten(color, scale):
         max(min(255, int(b * factor)), 0),
         blink
     )
- 
+
 DEFAULT_FONT={
     ' ': (1, [0, 0, 0, 0, 0]),
     '0': (3, [7, 5, 5, 5, 7]),
@@ -44,7 +44,7 @@ DEFAULT_FONT={
 
 class Screen:
     BLOCK = '  '#██'
-    
+
     def __init__(self, width, height, offset=(0,0)):
         self.width = width
         self.height = height
@@ -56,7 +56,9 @@ class Screen:
 
         wrt("\033[?47h")  # save current screen
         wrt("\033[?25l")  # Hide cursor
+        wrt("\033[2J")  # clear entire screen
         sys.stdout.flush()
+
 
     def close(self):
         wrt("\033[?47l")  # save current screen
@@ -76,7 +78,7 @@ class Screen:
         assert (0<=r<=255) and (0<=g<=255) and (0<=b<=255)
 
         self.data[y][x] = (r, g, b, bool(blink))
-    
+
     def line(self, x0, y0, x1, y1, color):
         """
         Bresenham's line algorithm
@@ -105,10 +107,10 @@ class Screen:
                 if err < 0:
                     x += sx
                     err += dy
-                y += sy   
+                y += sy
 
         self[x, y] = color
-    
+
 
     def hline(self, x0, x1, y, color):
         if x1<0:
@@ -121,11 +123,11 @@ class Screen:
             y1+=self.height
         for y in range(y0, y1+1):
             self[x,y] = color
-            
+
     def rect(self, x0, y0, x1, y1, color):
         """Draw rectangle"""
         if x1 < 0:
-            x1 += self.width 
+            x1 += self.width
         if y1 < 0:
             y1 += self.height
 
@@ -136,7 +138,7 @@ class Screen:
 
     def fullrect(self, x0, y0, x1, y1, color):
         if x1 < 0:
-            x1 += self.width 
+            x1 += self.width
         if y1 < 0:
             y1 += self.height
 
@@ -156,7 +158,6 @@ class Screen:
 
 
     def sync(self):
-        wrt("\033[2J")  # clear entire screen
         for y in range(self.height):
             wrt("\033[%d;%dH" % (1 + y+self.offset[1], 1 + 2 * self.offset[0]))  # move cursor to start of yth row
             for x in range(self.width):
@@ -190,6 +191,17 @@ class Screen:
             for x in range(self.width):
                 self[x, y] = color
 
+    def save_to_pnm(self, path):
+        with open(path, 'wb') as output:
+            output.write(b'P6\n')
+            output.write(f'{self.width} {self.height}\n'.encode('utf-8'))
+            output.write(b'255\n')
+            for y in range(self.height):
+                for x in range(self.width):
+                    output.write(bytes(self.data[y][x][:3]))
+            
+# from datetime import datetime
+        
 class SubPixelScreen(Screen):
     def sync(self):
         #wrt("\033[2J")  # clear entire screen
@@ -208,3 +220,5 @@ class SubPixelScreen(Screen):
             sys.stdout.flush()
         wrt("\033[H")
         sys.stdout.flush()
+
+        # self.save_to_pnm(f'/tmp/out-{datetime.now()}.pnm')
