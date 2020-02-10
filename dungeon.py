@@ -6,12 +6,26 @@ up/down    - move forward/backward
 left/right - rotate left/right
 space      - jump
 e          - use object
+x          - attack
 s          - save screenshot to /tmp/
 < >        - change weapon
 ?          - show/hide weapon
 esc        - exit game
+
+Ideas:
+- jumping to destroy floor
+- secret language
+- compas
+- real torch
+- speel system by keys order
+- hiden places
+- jumping to press floor plate
+- alchemy
 """
+
 import random, math, time
+from datetime import datetime
+
 from rt.solids import Triangle, Quad
 from rt.utils import Point3f, Ray, Vector3f
 from rt.scene import Scene
@@ -19,15 +33,15 @@ from rt.cameras import PerspectiveCamera
 from rt.renderer import Renderer
 from rt.image import Image, Color4f
 from rt.integrators import RayTracingIntegrator
-from screen import Screen, SubPixelScreen
-from keyboard import Keyboard, Keys
 from rt.materials import DummyMaterial, FlatMaterial, PhongMaterial
 from rt.world import World
 from rt.lights import PointLight
 from rt.coordmappers import TriangleMapper
 from rt.textures import ConstantTexture, ImageTexture
-from font import BOXY_BOLD_FONT_PLUS
-from datetime import datetime
+
+from font import BOXY_BOLD_FONT_PLUS, MAGIC_FONT
+from screen import Screen, SubPixelScreen
+from keyboard import Keyboard, Keys
 
 DEBUG = False
 
@@ -60,9 +74,10 @@ D               #
 #""".split("\n")
 
 TEXTURES = {}
+DRAGON = None
 
 def build_scene(tileset):
-    global TEXTURES
+    global TEXTURES, DRAGON
     width, height = len(LEVEL[0])//2, len(LEVEL)//2
 
     mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(0.0, 1.0, 0.0), Point3f(1.0, 0.0, 0.0))
@@ -116,6 +131,7 @@ def build_scene(tileset):
 
     monster = Quad(Point3f(0, -1, 2.75), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=TEXTURES['m'], coord_mapper=mapper)
     s.add(monster)
+    DRAGON = monster
 
     queen = Quad(Point3f(-1, -0.75, 1.25), Vector3f(0, 0.75, 0), Vector3f(0.75, 0, 0), material=TEXTURES['q'], coord_mapper=mapper)
     s.add(queen)
@@ -172,7 +188,7 @@ if __name__ == '__main__':
     show_item = True
     door_open = False
     has_key = False
-
+    dragon_hp = 5
 
     try:
         Keyboard.init()
@@ -194,18 +210,28 @@ if __name__ == '__main__':
                 scr.imshow(output)
                 if show_item:
                     scr.imshow(item, (8, 16))
-                # tttt = "     Dungeon\n   - - - - - - -\n Start game\n  Load game\n    Settings\n\n          Exit"
-                # scr.puttext(2, 3, tttt, Color4f(1.0, 1.0, 1.0, 1.0), shadow_color=Color4f(0, 0, 0, 0.75))
+
+                # tttt = "     Dungeon\n   - - - - - - -\n Start game\n  Load game\n    Settings\n\n          Exit".upper()
+                # for dx in (-1, 0, 1):
+                #     for dy in (-1, 0, 1):
+                #         scr.puttext(2+dx, 3+dy, tttt, Color4f(1.0, 1.0, 1.0, 1.0), shadow_color=Color4f(0, 0, 0, 0.75), font=MAGIC_FONT)
+                # scr.puttext(2, 3, tttt, Color4f(1.0, 0, 0, 1.0), shadow_color=Color4f(0, 0, 0, 0.75), font=MAGIC_FONT)
+
                 scr.sync()
             else:
                 key = Keyboard.getch()
-                if key in (Keys.UP, Keys.DOWN):
-                    mult = 1 if key == Keys.UP else -1
+                if key in (Keys.UP, Keys.DOWN, 'x'):
+                    if key == 'x' and not (round(2*pos_x) == 1 and round(2*pos_z) == 5 and show_item and dragon_hp is not None):
+                        continue
+                    mult = -1 if key == Keys.DOWN else 1
 
                     new_pos_x = round(2 * pos_x + mult * math.sin(ang) * step_length)
                     new_pos_z = round(2 * pos_z + mult * math.cos(ang) * step_length)
                     cell = LEVEL[new_pos_z][new_pos_x]
-                    if cell in (' ', 'd', 'X') or (cell == 'D' and door_open):
+                    if key == 'x':
+                        f = [0.1, 0.2, 0.25, 0.2, 0.1, 0.0]
+                        dragon_hp -= 1
+                    elif (cell in (' ', 'd', 'X') or (cell == 'D' and door_open)) and (dragon_hp is None or new_pos_x!=1 or new_pos_z !=6):
                         f = [(i+1)/FPT for i in range(FPT)]
                     else:
                         f = [0.1, 0.25, 0.35, 0.20, 0.1, 0.0]
@@ -214,6 +240,11 @@ if __name__ == '__main__':
 
                     for m in f:
                         states.append((pos_x + mult * math.sin(ang)*step_length * m, pos_y, pos_z + mult * math.cos(ang)*step_length * m, ang))
+                    
+                    if dragon_hp is not None and dragon_hp <= 0:
+                        s._objects.remove(DRAGON)
+                        dragon_hp = None
+
                 if key in (Keys.LEFT, Keys.RIGHT):
                     mult = 1 if key == Keys.LEFT else -1
                     for i in range(FPT):

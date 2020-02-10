@@ -1,16 +1,16 @@
 from rt.image import Image, Color3i, Color4f
-from typing import List
+from typing import List, Optional
 
 
 class Font:
     full_color = False
 
-    def __init__(self, path: str, foreground: Color3i, shadow: Color3i, transparency: Color3i, glyphs: List[str], line_height: int, char_spacing: int = 1,):
+    def __init__(self, path: str, foreground: Color3i, transparency: Color3i, glyphs: List[str], line_height: int, shadow: Optional[Color3i] = None, char_spacing: int = 1,):
         self.image = Image.from_pnm(path, transparency=transparency)
         self.glyphs = {}
         
         self.foreground = Color4f(foreground[0]/255, foreground[1]/255, foreground[2]/255, 1.0)
-        self.shadow = Color4f(shadow[0]/255, shadow[1]/255, shadow[2]/255, 1.0)
+        self.shadow = Color4f(shadow[0]/255, shadow[1]/255, shadow[2]/255, 1.0) if shadow else None
 
         self.char_spacing = char_spacing
         self.line_height = line_height
@@ -52,7 +52,7 @@ class Font:
                     line_glyphs.append((glyph_start, x-1))
                     glyph_start = None
             
-            assert len(line_glyphs) == len(glyphs[lineno])
+            assert len(line_glyphs) == len(glyphs[lineno]), f"Line #{lineno} expected to has {len(line_glyphs)} glyphs, but it has {len(glyphs[lineno])}"
 
             for c, pos in zip(glyphs[lineno], line_glyphs):
                 self.glyphs[c] = self.image.crop((pos[0], line[0], pos[1], line[1]))
@@ -69,3 +69,9 @@ BOXY_BOLD_FONT_PLUS = Font('gfx/font.pnm', foreground=(255,255,255), shadow=(0,0
     'opqrstuvwxyz'
 ], char_spacing=-1, line_height=8)
 
+
+MAGIC_FONT = Font('gfx/magic_font.pnm', foreground=(0, 0, 0), transparency=(0, 255,255), glyphs=[
+    '.ABCDEFGHIJKLMNO',
+    'PQRSTUVWXYZ()',
+    '-abcdefghijklmnopqrstuvwxyz<>',
+], line_height=12)
