@@ -14,6 +14,7 @@ from rt.lights import PointLight
 from rt.coordmappers import TriangleMapper
 from rt.textures import ConstantTexture, ImageTexture
 from font import BOXY_BOLD_FONT_PLUS
+from datetime import datetime
 
 DEBUG = False
 
@@ -222,6 +223,8 @@ if __name__ == '__main__':
                             scr.sync()
                             time.sleep(0.1)
                         show_item = True
+                if key == 's':
+                    scr.save_to_pnm(f'/tmp/out-{datetime.now()}.pnm')
                 if key == Keys.ESC:
                     break
 
