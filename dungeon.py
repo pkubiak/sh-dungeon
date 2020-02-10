@@ -209,6 +209,8 @@ if __name__ == '__main__':
                         f = [(i+1)/FPT for i in range(FPT)]
                     else:
                         f = [0.1, 0.25, 0.35, 0.20, 0.1, 0.0]
+                        if mult == -1:
+                            f = [0.5*i for i in f]
 
                     for m in f:
                         states.append((pos_x + mult * math.sin(ang)*step_length * m, pos_y, pos_z + mult * math.cos(ang)*step_length * m, ang))
