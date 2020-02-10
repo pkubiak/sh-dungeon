@@ -21,6 +21,7 @@ Ideas:
 - hiden places
 - jumping to press floor plate
 - alchemy
+- worek pieniędzy (różne waluty, nie tylko złoto)
 """
 
 import random, math, time
@@ -48,11 +49,11 @@ DEBUG = False
 LEVEL = """\
 #################
 D               #
-# #####d####### #
-# #   S S       #
-# #S# # # #######
-#   S   S       #
-# # #S#S####### #
+# ###d######### #
+# # S S #       #
+# ###S### #######
+#   # #         #
+# # ########### #
 # #   #     #   #
 #X### # ### # ###
 #   #   #   #   #
@@ -125,6 +126,7 @@ def build_scene(tileset):
         'X': 17*64+11, # magic wall
         'q': 9*64+27, # queen
         'c': 45*64+44, # chest
+        's': 11*64+32-5-4-3 # squll
     }
 
     TEXTURES = {key: FlatMaterial(ImageTexture(tileset[value])) for key, value in mapping.items()}
@@ -139,18 +141,23 @@ def build_scene(tileset):
     cheest = Quad(Point3f(1.75, -0.5, 4.25), Vector3f(0, 0.5, 0), Vector3f(0, 0, 0.5), material=TEXTURES['c'], coord_mapper=mapper)
     s.add(cheest)
 
+    squll = Quad(Point3f(2.1, -0.8, 1.75), Vector3f(0.0, 0.8, 0.0), Vector3f(0.8, 0, 0), material=TEXTURES['s'], coord_mapper=mapper)
+    s.add(squll)
+
     for y in range(height+1):
         for x in range(width):
             c = LEVEL[2*y][2*x+1]
             if c != ' ':
-                q = Quad(Point3f(x, -1, y), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=TEXTURES[c], coord_mapper=mapper)
+                t = TEXTURES[c] if c != '#' else FlatMaterial(ImageTexture(tileset[random.randint(19*64-24, 19*64-18)]))
+                q = Quad(Point3f(x, -1, y), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=t, coord_mapper=mapper)
                 s.add(q)
     # vertical walls
     for y in range(height):
         for x in range(width+1):
             c = LEVEL[2*y+1][2*x]
             if c != ' ':
-                q = Quad(Point3f(x, -1, y), Vector3f(0, 1, 0), Vector3f(0, 0, 1), material=TEXTURES[c], coord_mapper=mapper)
+                t = TEXTURES[c] if c != '#' else FlatMaterial(ImageTexture(tileset[random.randint(19*64-24, 19*64-18)]))
+                q = Quad(Point3f(x, -1, y), Vector3f(0, 1, 0), Vector3f(0, 0, 1), material=t, coord_mapper=mapper)
                 s.add(q)
     return s
 
