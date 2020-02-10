@@ -1,3 +1,16 @@
+"""
+sh-dungeon engine demo game
+
+Keyboard:
+up/down    - move forward/backward
+left/right - rotate left/right
+space      - jump
+e          - use object
+s          - save screenshot to /tmp/
+< >        - change weapon
+?          - show/hide weapon
+esc        - exit game
+"""
 import random, math, time
 from rt.solids import Triangle, Quad
 from rt.utils import Point3f, Ray, Vector3f
@@ -27,7 +40,7 @@ D               #
 #   S   S       #
 # # #S#S####### #
 # #   #     #   #
-# ### # ### # ###
+#X### # ### # ###
 #   #   #   #   #
 ####### # #######
 # #     #       #
@@ -66,8 +79,12 @@ def build_scene(tileset):
     # floor_tex = ConstantTexture(Color4f(170/255, 211/255, 86/255, 1.0))
     # Image.from_pnm('./gfx/grass3.pnm')
     floor_tex = ImageTexture(tileset[13*64+18], border_handling=ImageTexture.BORDER_REPEAT)
-    floor_mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(20+width, 0.0, 0.0), Point3f(0.0, 20+height, 0.0))
+    floor_mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(200+width, 0.0, 0.0), Point3f(0.0, 200+height, 0.0))
     floor = FlatMaterial(floor_tex)
+
+    ceil_tex = ImageTexture(tileset[19*64-18], border_handling=ImageTexture.BORDER_REPEAT)
+    ceil_mapper = TriangleMapper(Point3f(0.0, 0.0, 0.0), Point3f(width, 0.0, 0.0), Point3f(0.0, height, 0.0))
+    ceil = FlatMaterial(ceil_tex)
 
 
     if DEBUG:
@@ -78,7 +95,10 @@ def build_scene(tileset):
     s.add(Quad(Point3f(-1000,-20, -1000), Vector3f(2000+width, 0, 0), Vector3f(0, 0, 2000+height), material=sky, coord_mapper=sky_mapper))
 
     # add ground
-    s.add(Quad(Point3f(-10, 0, -10), Vector3f(20+width, 0, 0), Vector3f(0, 0, 20 + height), material=floor, coord_mapper=floor_mapper))
+    s.add(Quad(Point3f(-100, 0, -100), Vector3f(200+width, 0, 0), Vector3f(0, 0, 200 + height), material=floor, coord_mapper=floor_mapper))
+
+    # add ceil
+    s.add(Quad(Point3f(0, -1, 0), Vector3f(width, 0, 0), Vector3f(0, 0, height), material=ceil, coord_mapper=ceil_mapper))
 
     # horizontal walls
     mapping = {
@@ -86,13 +106,22 @@ def build_scene(tileset):
         'S': 18*64+32,
         'D': 11*64+32-5-4, #15*64+32,
         'd': 15*64+34,
-        'm': 3*64+1
+        'm': 3*64+1, # dragon
+        'X': 17*64+11, # magic wall
+        'q': 9*64+27, # queen
+        'c': 45*64+44, # chest
     }
 
     TEXTURES = {key: FlatMaterial(ImageTexture(tileset[value])) for key, value in mapping.items()}
 
     monster = Quad(Point3f(0, -1, 2.75), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=TEXTURES['m'], coord_mapper=mapper)
     s.add(monster)
+
+    queen = Quad(Point3f(-1, -0.75, 1.25), Vector3f(0, 0.75, 0), Vector3f(0.75, 0, 0), material=TEXTURES['q'], coord_mapper=mapper)
+    s.add(queen)
+
+    cheest = Quad(Point3f(1.75, -0.5, 4.25), Vector3f(0, 0.5, 0), Vector3f(0, 0, 0.5), material=TEXTURES['c'], coord_mapper=mapper)
+    s.add(cheest)
 
     for y in range(height+1):
         for x in range(width):
@@ -142,6 +171,7 @@ if __name__ == '__main__':
     item = items[item_idx].hflip().scale(2)
     show_item = True
     door_open = False
+    has_key = False
 
 
     try:
@@ -164,8 +194,8 @@ if __name__ == '__main__':
                 scr.imshow(output)
                 if show_item:
                     scr.imshow(item, (8, 16))
-                tttt = "     Dungeon\n   - - - - - - -\n Start game\n  Load game\n    Settings\n\n          Exit"
-                scr.puttext(2, 3, tttt, Color4f(1.0, 1.0, 1.0, 1.0), shadow_color=Color4f(0, 0, 0, 0.75))
+                # tttt = "     Dungeon\n   - - - - - - -\n Start game\n  Load game\n    Settings\n\n          Exit"
+                # scr.puttext(2, 3, tttt, Color4f(1.0, 1.0, 1.0, 1.0), shadow_color=Color4f(0, 0, 0, 0.75))
                 scr.sync()
             else:
                 key = Keyboard.getch()
@@ -175,7 +205,7 @@ if __name__ == '__main__':
                     new_pos_x = round(2 * pos_x + mult * math.sin(ang) * step_length)
                     new_pos_z = round(2 * pos_z + mult * math.cos(ang) * step_length)
                     cell = LEVEL[new_pos_z][new_pos_x]
-                    if cell in (' ', 'd') or (cell == 'D' and door_open):
+                    if cell in (' ', 'd', 'X') or (cell == 'D' and door_open):
                         f = [(i+1)/FPT for i in range(FPT)]
                     else:
                         f = [0.1, 0.25, 0.35, 0.20, 0.1, 0.0]
@@ -189,10 +219,10 @@ if __name__ == '__main__':
                 if key == Keys.SPACE:
                     for j in [-0.2, -0.3, -0.35, -0.3, -0.2, 0.0]:
                         states.append((pos_x, pos_y + j, pos_z, ang))
-                if key in (Keys.PAGE_UP, Keys.PAGE_DOWN):
-                    torch_intensity += 0.1 if key == Keys.PAGE_UP else -0.1
-                    torch.intensity = torch_intensity * torch_color
-                    states.append((pos_x, pos_y, pos_z, ang))
+                # if key in (Keys.PAGE_UP, Keys.PAGE_DOWN):
+                #     torch_intensity += 0.1 if key == Keys.PAGE_UP else -0.1
+                #     torch.intensity = torch_intensity * torch_color
+                #     states.append((pos_x, pos_y, pos_z, ang))
                 if key in '<>':
                     item_idx = (item_idx + (1 if key == '>' else -1)) % len(items)
                     item = items[item_idx].hflip().scale(2)
@@ -201,12 +231,24 @@ if __name__ == '__main__':
                     new_pos_x = round(2 * pos_x + math.sin(ang) * step_length)
                     new_pos_z = round(2 * pos_z + math.cos(ang) * step_length)
                     if LEVEL[new_pos_z][new_pos_x] == 'D':
-                        if door_open:
-                            TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5-4])
+                        if has_key:
+                            if door_open:
+                                TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5-4])
+                            else:
+                                TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5])
+                            door_open = not door_open
                         else:
-                            TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5])
+                            scr.puttext(6, 10, "Locked!!!", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
+                            scr.sync()
+                            time.sleep(1)
+                    if round(2*pos_x) == 3 and round(2*pos_z) == 9 and not has_key:
+                        TEXTURES['c'].texture = ImageTexture(tileset[45*64+45])
+                        has_key = True
+                        scr.puttext(6, 10, "You found", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
+                        scr.puttext(6, 22, "   Gold Key", Color4f(1.0,1.0, 0.0), shadow_color=Color4f(0,0,0,1))
+                        scr.sync()
+                        time.sleep(1)
 
-                        door_open = not door_open
                     states.append(prev_state)
                 if key == '?':
                     if show_item:
