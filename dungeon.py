@@ -188,15 +188,41 @@ if __name__ == '__main__':
     if DEBUG:
         integrator.world.lights.extend([torch, blue_light])
 
-    items = Image.from_pnm('gfx/swords2.pnm', transparency=(0, 255, 255)).as_tileset(32, 32)
+    swords = Image.from_pnm('gfx/swords2.pnm', transparency=(0,255,255)).as_tileset(32, 32)
+    compass = Image.from_pnm('gfx/compass.pnm', transparency=(0, 255, 255)).as_tileset(32, 32)
+    shovel = Image.from_pnm('gfx/shovel.pnm', transparency=(0,255,255))
 
-    item_idx = 1
-    item = items[item_idx].hflip().scale(2)
-    show_item = True
+    item_idx = 0
+    inventory = ['compass', 'shovel']
+    shovel_pos = (3.5, 2.5)
+    def get_item():
+        if inventory[item_idx] == 'compass':
+            if 'sword' not in inventory:
+                if (abs(shovel_pos[0] - pos_x) < 0.001) and (abs(shovel_pos[1] - pos_z) < 0.001):
+                    # scr.puttext(0,0, f"{pos_x:.2f} {pos_z:.2f} {ang:.3f}", Color4f(1,1,1,1))
+                    # scr.puttext(0,10, f"{shovel_pos[0]:.2f} {shovel_pos[1]:.2f}", Color4f(1,1,1,1))
+                    compass_idx = random.randint(0,7)
+                else:
+                    ang2 = ang - math.atan2(shovel_pos[0] - pos_x, shovel_pos[1] - pos_z)
+                    compass_idx = round(-8.0 * (0.5 * ang2 / math.pi)) % 8
+            else:
+                compass_idx = round(-8.0 * (0.5 * ang / math.pi)) % 8
+
+            return compass[compass_idx].hflip(), (30, 36)
+        elif inventory[item_idx] == 'shovel':
+            item = shovel.scale(2), (4, 12)
+        elif inventory[item_idx] == 'sword':
+            item = swords[1].hflip().scale(2), (4,12)
+        elif inventory[item_idx] == 'gold_key':
+            item = tileset[46*64-10].hflip(), (30, 36)
+        return item
+
+    # item = items[item_idx].hflip().scale(2)
+    show_item = False
     door_open = False
     has_key = False
     dragon_hp = 5
-
+    debug_mode = False
     try:
         Keyboard.init()
 
@@ -216,16 +242,22 @@ if __name__ == '__main__':
 
                 scr.imshow(output)
                 if show_item:
-                    scr.imshow(item, (8, 16))
+                    # item, imoff = 
+                    # if inventory[item_idx] == 'compass':
+                    scr.imshow(*get_item())
+                    # elif inventory[item_idx] == 'shovel':
+                        # scr.imshow(item, (8, 16))
 
                 # tttt = "     Dungeon\n   - - - - - - -\n Start game\n  Load game\n    Settings\n\n          Exit".upper()
                 # for dx in (-1, 0, 1):
                 #     for dy in (-1, 0, 1):
                 #         scr.puttext(2+dx, 3+dy, tttt, Color4f(1.0, 1.0, 1.0, 1.0), shadow_color=Color4f(0, 0, 0, 0.75), font=MAGIC_FONT)
-                # scr.puttext(2, 3, tttt, Color4f(1.0, 0, 0, 1.0), shadow_color=Color4f(0, 0, 0, 0.75), font=MAGIC_FONT)
-
+                # scr.puttext(2, 3, tttt, Color4f(1.0, 0, 0, 1.0), shadow_color=Color4f(0, 0, 0, 0.75), font=BOXY_BOLD_FONT_PLUS)
+                if debug_mode:
+                    scr.puttext(0,0, f"{pos_x:.2f} {pos_z:.2f}\n{ang:.3f}", Color4f(1,1,1,1))
                 scr.sync()
             else:
+                Keyboard.clear()
                 key = Keyboard.getch()
                 if key in (Keys.UP, Keys.DOWN, 'x'):
                     if key == 'x' and not (round(2*pos_x) == 1 and round(2*pos_z) == 5 and show_item and dragon_hp is not None):
@@ -236,9 +268,12 @@ if __name__ == '__main__':
                     new_pos_z = round(2 * pos_z + mult * math.cos(ang) * step_length)
                     cell = LEVEL[new_pos_z][new_pos_x]
                     if key == 'x':
-                        f = [0.1, 0.2, 0.25, 0.2, 0.1, 0.0]
-                        dragon_hp -= 1
-                    elif (cell in (' ', 'd', 'X') or (cell == 'D' and door_open)) and (dragon_hp is None or new_pos_x!=1 or new_pos_z !=6):
+                        if show_item and inventory[item_idx] == 'sword':
+                            f = [0.1, 0.2, 0.25, 0.2, 0.1, 0.0]
+                            dragon_hp -= 1
+                        else:
+                            continue
+                    elif (cell in (' ', 'd') or (cell == 'X' and not show_item) or (cell == 'D' and door_open)) and (dragon_hp is None or new_pos_x!=1 or new_pos_z !=6):
                         f = [(i+1)/FPT for i in range(FPT)]
                     else:
                         f = [0.1, 0.25, 0.35, 0.20, 0.1, 0.0]
@@ -255,7 +290,7 @@ if __name__ == '__main__':
                 if key in (Keys.LEFT, Keys.RIGHT):
                     mult = 1 if key == Keys.LEFT else -1
                     for i in range(FPT):
-                        states.append((pos_x, pos_y, pos_z, ang + mult * math.pi/2 * (i+1) / FPT))
+                        states.append((pos_x, pos_y, pos_z, (ang + mult * math.pi/2 * (i+1) / FPT) % (2*math.pi)))
                 if key == Keys.SPACE:
                     for j in [-0.2, -0.3, -0.35, -0.3, -0.2, 0.0]:
                         states.append((pos_x, pos_y + j, pos_z, ang))
@@ -264,47 +299,62 @@ if __name__ == '__main__':
                 #     torch.intensity = torch_intensity * torch_color
                 #     states.append((pos_x, pos_y, pos_z, ang))
                 if key in '<>':
-                    item_idx = (item_idx + (1 if key == '>' else -1)) % len(items)
-                    item = items[item_idx].hflip().scale(2)
+                    item_idx = (item_idx + (1 if key == '>' else -1)) % len(inventory)
+                    # item = items[item_idx].hflip().scale(2)
                     states.append((pos_x, pos_y, pos_z, ang))
                 if key == 'e':
                     new_pos_x = round(2 * pos_x + math.sin(ang) * step_length)
                     new_pos_z = round(2 * pos_z + math.cos(ang) * step_length)
-                    if LEVEL[new_pos_z][new_pos_x] == 'D':
-                        if has_key:
+                    if not show_item:
+                        if LEVEL[new_pos_z][new_pos_x] == 'D' and not door_open:
+                            scr.puttext(6, 10, "Locked!!!", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
+                            scr.sync()
+                            time.sleep(1)
+                        if round(2*pos_x) == 3 and round(2*pos_z) == 9 and not has_key:
+                            TEXTURES['c'].texture = ImageTexture(tileset[45*64+45])
+                            has_key = True
+                            scr.puttext(6, 10, "You found", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
+                            scr.puttext(6, 22, "   Gold Key", Color4f(1.0,1.0, 0.0), shadow_color=Color4f(0,0,0,1))
+                            inventory.append('gold_key')
+                            scr.sync()
+                            time.sleep(1)
+                    elif show_item and inventory[item_idx] == 'gold_key':
+                        if LEVEL[new_pos_z][new_pos_x] == 'D':
                             if door_open:
                                 TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5-4])
                             else:
                                 TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5])
                             door_open = not door_open
+                                
+                    elif show_item and inventory[item_idx] == 'shovel':
+                        if ('sword' not in inventory) and abs(shovel_pos[0] - pos_x) < 0.001 and abs(shovel_pos[1] -pos_z) < 0.001:
+                            scr.puttext(6, 10, "You found", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
+                            scr.puttext(4, 22, "Long Sword", Color4f(1.0,1.0, 0.0), shadow_color=Color4f(0,0,0,1))
+                            inventory.append('sword')
                         else:
-                            scr.puttext(6, 10, "Locked!!!", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
-                            scr.sync()
-                            time.sleep(1)
-                    if round(2*pos_x) == 3 and round(2*pos_z) == 9 and not has_key:
-                        TEXTURES['c'].texture = ImageTexture(tileset[45*64+45])
-                        has_key = True
-                        scr.puttext(6, 10, "You found", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
-                        scr.puttext(6, 22, "   Gold Key", Color4f(1.0,1.0, 0.0), shadow_color=Color4f(0,0,0,1))
+                            scr.puttext(6, 10, "You dig!!!", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
                         scr.sync()
                         time.sleep(1)
-
                     states.append(prev_state)
                 if key == '?':
+                    im, imof = get_item()
                     if show_item:
                         for i in range(8):
                             scr.imshow(output)
-                            scr.imshow(item, (8, 16 + 8 * i))
+                            scr.imshow(im, (imof[0], imof[1] + 8 * i))
                             scr.sync()
                             time.sleep(0.1)
                         show_item = False
                     else:
                         for i in reversed(range(8)):
                             scr.imshow(output)
-                            scr.imshow(item, (8, 16 + 8 * i))
+                            scr.imshow(im, (imof[0], imof[1] + 8 * i))
                             scr.sync()
                             time.sleep(0.1)
                         show_item = True
+                if key == 'q':
+                    debug_mode = not debug_mode
+                    states.append(prev_state)
                 if key == 's':
                     scr.save_to_pnm(f'/tmp/out-{datetime.now()}.pnm')
                 if key == Keys.ESC:
