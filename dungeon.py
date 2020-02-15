@@ -8,6 +8,7 @@ space      - jump
 e          - use object
 x          - attack
 s          - save screenshot to /tmp/
+q          - debug view
 < >        - change weapon
 ?          - show/hide weapon
 esc        - exit game
@@ -18,10 +19,13 @@ Ideas:
 - compas
 - real torch
 - speel system by keys order
+- nauka czarów d magów poprzez kopiowanie
 - hiden places
 - jumping to press floor plate
 - alchemy
 - worek pieniędzy (różne waluty, nie tylko złoto)
+- transmutacja w małe zwierzątko
+- wchodzenie po schodach na pól pietro
 """
 
 import random, math, time
@@ -287,6 +291,10 @@ if __name__ == '__main__':
                         s._objects.remove(DRAGON)
                         dragon_hp = None
 
+                if key in ('n', 'm'): # Ascend descend
+                    mult = 1 if key == 'n' else -1
+                    for i in range(FPT):
+                        states.append((pos_x, pos_y + 0.45 * mult * (i+1) / FPT, pos_z, ang))
                 if key in (Keys.LEFT, Keys.RIGHT):
                     mult = 1 if key == Keys.LEFT else -1
                     for i in range(FPT):

@@ -39,7 +39,7 @@ class Quad(Solid):
         s = (uv*wv-vv*wu)/(uv*uv-uu*vv)
         t = (uv*wu-uu*wv)/(uv*uv-uu*vv)
 
-        if 0.0 < s < 1.0 and 0.0 < t < 1.0:
+        if 0.0 <= s <= 1.0 and 0.0 <= t <= 1.0:
             return Intersection(
                 solid=self,
                 ray=ray,

@@ -6,12 +6,16 @@ from ..image import Color4f
 from ..world import World
 from ..lights import Light, LightHit
 
+EPS = 0.001
+MAX_DEPTH = 8
 
 class RayTracingIntegrator(Integrator):
     def get_radiance(self, ray: Ray, depth: int = 0) -> Color4f:
         intersection = self.world.scene.intersect(ray)
 
-        if intersection and depth < 8:
+        if intersection:
+            if depth >= MAX_DEPTH:
+                return Color4f(1.0, 0.0, 0.0, 1.0)
             if intersection.solid.coord_mapper:
                 texture_point = intersection.solid.coord_mapper.get_coords(intersection)
             else:
@@ -19,14 +23,14 @@ class RayTracingIntegrator(Integrator):
 
             color = intersection.solid.material.get_emission(texture_point, intersection.normal, intersection.ray.d)
             if color.a < 1.0:
-                other = self.get_radiance(Ray(ray(intersection.distance+0.00001), ray.d), depth+1)
+                other = self.get_radiance(Ray(ray(intersection.distance+EPS), ray.d), depth+1)
                 color = color.a*color + (1.0 - color.a)*other
 
             for light in self.world.lights:
                 light_hit: LightHit = light.get_light_hit(intersection.hit_point)
-            
-                light_intersection = self.world.scene.intersect(Ray(intersection.ray(intersection.distance - 0.000001), -light_hit.direction))
-                if light_intersection and light_hit.distance - light_intersection.distance > 0.000001:
+
+                light_intersection = self.world.scene.intersect(Ray(intersection.ray(intersection.distance - EPS), -light_hit.direction))
+                if light_intersection and light_hit.distance - light_intersection.distance < EPS:
                     continue
 
                 intensity = light.get_intensity(light_hit)
