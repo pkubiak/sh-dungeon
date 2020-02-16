@@ -26,6 +26,7 @@ Ideas:
 - worek pieniędzy (różne waluty, nie tylko złoto)
 - transmutacja w małe zwierzątko
 - wchodzenie po schodach na pól pietro
+- fluorescentic glyphs on walls
 """
 
 import random, math, time
@@ -85,19 +86,18 @@ def build_scene(tileset):
     global TEXTURES, DRAGON
     width, height = len(LEVEL[0])//2, len(LEVEL)//2
 
-    mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(0.0, 1.0, 0.0), Point3f(1.0, 0.0, 0.0))
+    mapper = TriangleMapper(Point3f(1.0,0.0,0.0), Point3f(1.0, 1.0, 0.0), Point3f(0.0, 0.0, 0.0))
 
     dummy = DummyMaterial()
 
     # Sky
     # sky_tex = ConstantTexture(Color4f(183/255, 225/255, 243/255, 1.0))
-    sky_tex = ImageTexture(Image.from_pnm('./gfx/sky.pnm'), border_handling=ImageTexture.BORDER_REPEAT, interpolation=ImageTexture.INTERPOLATION_LINEAR)
+    sky_tex = ImageTexture(Image.load('./gfx/sky.pnm'), border_handling=ImageTexture.BORDER_REPEAT, interpolation=ImageTexture.INTERPOLATION_LINEAR)
     sky_mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(10+width, 0.0, 0.0), Point3f(0.0, 20+height, 0.0))
     sky = FlatMaterial(sky_tex)
 
     # Floor
     # floor_tex = ConstantTexture(Color4f(170/255, 211/255, 86/255, 1.0))
-    # Image.from_pnm('./gfx/grass3.pnm')
     floor_tex = ImageTexture(tileset[13*64+18], border_handling=ImageTexture.BORDER_REPEAT)
     floor_mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(200+width, 0.0, 0.0), Point3f(0.0, 200+height, 0.0))
     floor = FlatMaterial(floor_tex)
@@ -135,6 +135,8 @@ def build_scene(tileset):
 
     TEXTURES = {key: FlatMaterial(ImageTexture(tileset[value])) for key, value in mapping.items()}
 
+    # t64 = Image.load('./gfx/64x64.pam').as_tileset(64, 64)
+    # FlatMaterial(ImageTexture(t64[8*16+10]))
     monster = Quad(Point3f(0, -1, 2.75), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=TEXTURES['m'], coord_mapper=mapper)
     s.add(monster)
     DRAGON = monster
@@ -145,6 +147,7 @@ def build_scene(tileset):
     cheest = Quad(Point3f(1.75, -0.5, 4.25), Vector3f(0, 0.5, 0), Vector3f(0, 0, 0.5), material=TEXTURES['c'], coord_mapper=mapper)
     s.add(cheest)
 
+    # FlatMaterial(ImageTexture(tileset2[64*12+27])),
     squll = Quad(Point3f(2.1, -0.8, 1.75), Vector3f(0.0, 0.8, 0.0), Vector3f(0.8, 0, 0), material=TEXTURES['s'], coord_mapper=mapper)
     s.add(squll)
 
@@ -166,16 +169,18 @@ def build_scene(tileset):
     return s
 
 if __name__ == '__main__':
-    def random_point():
-        return Point3f(random.random(), random.random(), random.random())
+    # t0 = time.time()
+    # # tileset2 = Image.load('./gfx/ProjectUtumno_full.pam').as_tileset(32, 32)
+    # t1 = time.time()
+    # print(t1 - t0)
 
-    tileset = Image.from_pnm('./gfx/tileset.pnm', transparency=(0,255,255)).as_tileset(32,32)
+    tileset = Image.load('./gfx/tileset.pnm', transparency=(0,255,255)).as_tileset(32,32)
 
     s = build_scene(tileset)
 
-    N = 31
-    scr  = SubPixelScreen(2*N+1, 2*N+1)
-    output = Image(width=2*N+1, height=2*N+1)
+    output = Image(width=63, height=63)
+    scr  = SubPixelScreen(output.width, output.height)
+    
 
     step_length = 1.0
     dof = 100
@@ -192,9 +197,9 @@ if __name__ == '__main__':
     if DEBUG:
         integrator.world.lights.extend([torch, blue_light])
 
-    swords = Image.from_pnm('gfx/swords2.pnm', transparency=(0,255,255)).as_tileset(32, 32)
-    compass = Image.from_pnm('gfx/compass.pnm', transparency=(0, 255, 255)).as_tileset(32, 32)
-    shovel = Image.from_pnm('gfx/shovel.pnm', transparency=(0,255,255))
+    swords = Image.load('gfx/swords2.pnm', transparency=(0,255,255)).as_tileset(32, 32)
+    compass = Image.load('gfx/compass.pnm', transparency=(0, 255, 255)).as_tileset(32, 32)
+    shovel = Image.load('gfx/shovel.pnm', transparency=(0,255,255))
 
     item_idx = 0
     inventory = ['compass', 'shovel']

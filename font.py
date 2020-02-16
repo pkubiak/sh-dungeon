@@ -6,7 +6,7 @@ class Font:
     full_color = False
 
     def __init__(self, path: str, foreground: Color3i, transparency: Color3i, glyphs: List[str], line_height: int, shadow: Optional[Color3i] = None, char_spacing: int = 1,):
-        self.image = Image.from_pnm(path, transparency=transparency)
+        self.image = Image.load(path, transparency=transparency)
         self.glyphs = {}
         
         self.foreground = Color4f(foreground[0]/255, foreground[1]/255, foreground[2]/255, 1.0)

@@ -1,3 +1,4 @@
+import os.path
 from enum import Enum
 from typing import Tuple, Union, Optional, NamedTuple, List
 from .utils import Point3f
@@ -119,11 +120,68 @@ class PNMLoader:
         return texture
 
 
-class Image(PNMLoader):
+class PAMLoader:
+    @staticmethod
+    def _readline(file, keyword: str = None):
+        while True:
+            line = file.readline().strip()
+            if not line.startswith(b'#'):
+                if keyword:
+                    key, *items = line.split()
+                    if keyword != key:
+                        raise SyntaxError(f"Expected keyword {keyword} but get {key}")
+                    return items
+
+                return line
+
+    @classmethod
+    def from_pam(cls, path: str):
+        with open(path, 'rb') as file:
+            cls._readline(file, b'P7')
+
+            width, = map(int, cls._readline(file, b'WIDTH'))
+            height, = map(int, cls._readline(file, b'HEIGHT'))
+            depth, = map(int, cls._readline(file, b'DEPTH'))
+            
+            maxval, = map(int, cls._readline(file, b'MAXVAL'))
+            assert maxval == 255
+
+            tupltype, = cls._readline(file, b'TUPLTYPE')
+            if depth == 3:
+                assert tupltype == b'RGB'
+            elif depth == 4:
+                assert tupltype == b'RGB_ALPHA'
+            else:
+                raise ValueError(f"Unknown TUPLTYPE: {tupltype}")
+            cls._readline(file, b'ENDHDR')
+
+            image = Image(width=width, height=height)
+            for y in range(height):
+                for x in range(width):
+                    color = file.read(depth)
+                    color = [i / maxval for i in color]
+                    if color == 3:
+                        color.append(1.0)
+
+                    image[x, y] = Color4f(*color)
+            return image
+
+
+class ImageLoader:
+    @classmethod
+    def load(cls, path, *args, **kwargs) -> 'Image':
+        _root, ext = os.path.splitext(path)
+        if ext == '.pnm':
+            return PNMLoader.from_pnm(path, *args, **kwargs)
+        if ext == '.pam':
+            return PAMLoader.from_pam(path, *args, **kwargs)
+        raise ValueError(f"Unsupported image type '{ext}'")
+
+
+class Image(ImageLoader):
     @property
     def width(self):
         return self._width
-
 
     @property
     def height(self):
@@ -207,6 +265,8 @@ class Image(PNMLoader):
             for y in range(self.height // height)
             for x in range(self.width // width)
         ]
+
+    
     # def interpolate(self, point: Point3f, *, interpolation: Interpolation = Interpolation.NONE) -> Color4f:
     #     # print(point)
     #     x, y = round((self.width-1) * point.x), round((self.height-1) * point.y)
@@ -216,10 +276,10 @@ class Image(PNMLoader):
  
 
 if __name__ == '__main__':
-    torch = Image.from_pnm('gfx/torch.pnm')
+    torch = Image.load('gfx/torch.pnm')
     print(torch.width, torch.height)
     print(torch[12,12])
-    torch = Image.from_pnm('gfx/torch.pnm', transparency=(0, 255, 255))
+    torch = Image.load('gfx/torch.pnm', transparency=(0, 255, 255))
     print(torch[12,12])
     torch2 = torch.crop((0, 0, 4, 4))
     print(torch2.width, torch2.height)
