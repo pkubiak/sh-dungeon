@@ -89,6 +89,16 @@ D               #
 TEXTURES = {}
 DRAGON = None
 
+def create_sprite(texture, width, height, pos_x, pos_y, pos_z, angle=0.0):
+    mapper = TriangleMapper(Point3f(1.0,0.0,0.0), Point3f(1.0, 1.0, 0.0), Point3f(0.0, 0.0, 0.0))
+    material = FlatMaterial(ImageTexture(texture))
+
+    x = width * math.sin(angle)
+    z = width * math.cos(angle)
+
+    return Quad(Point3f(pos_x - 0.5*x, pos_y - height, pos_z - 0.5*z), Vector3f(0, height, 0), Vector3f(x, 0, z), material=material, coord_mapper=mapper)
+
+
 def build_scene(tileset):
     global TEXTURES, DRAGON
     width, height = len(LEVEL[0])//2, len(LEVEL)//2
@@ -142,11 +152,22 @@ def build_scene(tileset):
 
     TEXTURES = {key: FlatMaterial(ImageTexture(tileset[value])) for key, value in mapping.items()}
 
+
     # t64 = Image.load('./gfx/64x64.pam').as_tileset(64, 64)
     # FlatMaterial(ImageTexture(t64[8*16+10]))
-    monster = Quad(Point3f(0, -1, 2.75), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=TEXTURES['m'], coord_mapper=mapper)
-    s.add(monster)
-    DRAGON = monster
+
+    # monster = Quad(Point3f(0, -1, 2.75), Vector3f(0, 1, 0), Vector3f(1, 0, 0), material=TEXTURES['m'], coord_mapper=mapper)
+    # DRAGON = monster
+    DRAGON = create_sprite(tileset[mapping['m']], 1, 1, 0.5, 0, 2.75, 0.5*math.pi)
+    s.add(DRAGON)
+
+    tex = Image.load('./gfx/tree.pam')
+    for i in range(5):
+        for j in (0-0.3, 1+0.3):
+            tree = create_sprite(tex, 2, 3, -0.5 - i, 0.3, j)
+            s.add(tree)
+            tree = create_sprite(tex, 2, 3, -0.5 - i, 0.3, j, 0.5*math.pi)
+            s.add(tree)
 
     queen = Quad(Point3f(-1, -0.75, 1.25), Vector3f(0, 0.75, 0), Vector3f(0.75, 0, 0), material=TEXTURES['q'], coord_mapper=mapper)
     s.add(queen)

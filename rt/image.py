@@ -61,7 +61,6 @@ class Interpolation(Enum):
 class PNMLoader:
     @classmethod
     def from_pnm(cls, path: str, *,
-                 crop_to: Optional[Rect] = None,
                  transparency: Optional[Color3i] = None) -> 'Image':
         """
         Read texture from P3 (RGB ascii) or P6 (RGB raw) PNM format.
@@ -113,9 +112,6 @@ class PNMLoader:
         for y in range(height):
             for x in range(width):
                 texture[x, y] = values[y * width + x]
-
-        if crop_to:
-            return texture.crop(crop_to)
 
         return texture
 
@@ -169,14 +165,20 @@ class PAMLoader:
 
 class ImageLoader:
     @classmethod
-    def load(cls, path, *args, **kwargs) -> 'Image':
+    def load(cls, path: str, crop_to: Optional[Rect] = None, *args, **kwargs) -> 'Image':
         _root, ext = os.path.splitext(path)
-        if ext == '.pnm':
-            return PNMLoader.from_pnm(path, *args, **kwargs)
-        if ext == '.pam':
-            return PAMLoader.from_pam(path, *args, **kwargs)
-        raise ValueError(f"Unsupported image type '{ext}'")
 
+        if ext == '.pnm':
+            image = PNMLoader.from_pnm(path, *args, **kwargs)
+        elif ext == '.pam':
+            image = PAMLoader.from_pam(path, *args, **kwargs)
+        else:
+            raise ValueError(f"Unsupported image type '{ext}'")
+
+        if crop_to:
+            image = image.crop(crop_to)
+            
+        return image
 
 class Image(ImageLoader):
     @property
