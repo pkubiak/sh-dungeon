@@ -19,7 +19,7 @@ Ideas:
 - compas
 - real torch
 - speel system by keys order
-- nauka czarów d magów poprzez kopiowanie
+- nauka czarów od magów poprzez kopiowanie
 - hiden places
 - jumping to press floor plate
 - alchemy
@@ -27,6 +27,12 @@ Ideas:
 - transmutacja w małe zwierzątko
 - wchodzenie po schodach na pól pietro
 - fluorescentic glyphs on walls
+- slavic names (https://pl.wikipedia.org/wiki/M%C4%99skie_imiona_s%C5%82owia%C5%84skie)
+- secret codes
+
+Like wizardry / HOMM:
+- https://www.youtube.com/watch?v=DkwJ8RtmUco 
+- 
 """
 
 import random, math, time
@@ -48,6 +54,7 @@ from rt.textures import ConstantTexture, ImageTexture
 from font import BOXY_BOLD_FONT_PLUS, MAGIC_FONT
 from screen import Screen, SubPixelScreen
 from keyboard import Keyboard, Keys
+from sound import Sound
 
 DEBUG = False
 
@@ -179,6 +186,10 @@ if __name__ == '__main__':
     s = build_scene(tileset)
 
     output = Image(width=63, height=63)
+    sound = Sound()
+    MAIN_SOUND = "./sound/Memoraphile - Spooky Dungeon.ogg"
+    sound.play(MAIN_SOUND, loop=True)
+    sound_effects = Sound()
     scr  = SubPixelScreen(output.width, output.height)
     
 
@@ -202,7 +213,7 @@ if __name__ == '__main__':
     shovel = Image.load('gfx/shovel.pnm', transparency=(0,255,255))
 
     item_idx = 0
-    inventory = ['compass', 'shovel']
+    inventory = ['compass', 'shovel', 'sword', 'gold_key']
     shovel_pos = (3.5, 2.5)
     def get_item():
         if inventory[item_idx] == 'compass':
@@ -280,14 +291,17 @@ if __name__ == '__main__':
                         if show_item and inventory[item_idx] == 'sword':
                             f = [0.1, 0.2, 0.25, 0.2, 0.1, 0.0]
                             dragon_hp -= 1
+                            sound_effects.play('sound/RPG Sound Pack/battle/sword-unsheathe.wav')
                         else:
                             continue
                     elif (cell in (' ', 'd') or (cell == 'X' and not show_item) or (cell == 'D' and door_open)) and (dragon_hp is None or new_pos_x!=1 or new_pos_z !=6):
                         f = [(i+1)/FPT for i in range(FPT)]
+                        sound_effects.play('sound/RPG Sound Pack/interface/interface2.wav')
                     else:
                         f = [0.1, 0.25, 0.35, 0.20, 0.1, 0.0]
                         if mult == -1:
                             f = [0.5*i for i in f]
+                        sound_effects.play('sound/RPG Sound Pack/interface/interface1.wav')
 
                     for m in f:
                         states.append((pos_x + mult * math.sin(ang)*step_length * m, pos_y, pos_z + mult * math.cos(ang)*step_length * m, ang))
@@ -295,6 +309,7 @@ if __name__ == '__main__':
                     if dragon_hp is not None and dragon_hp <= 0:
                         s._objects.remove(DRAGON)
                         dragon_hp = None
+                        sound_effects.play('sound/RPG Sound Pack/misc/random1.wav')
 
                 if key in ('n', 'm'): # Ascend descend
                     mult = 1 if key == 'n' else -1
@@ -338,6 +353,8 @@ if __name__ == '__main__':
                             else:
                                 TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5])
                             door_open = not door_open
+                            sound_effects.play('./sound/RPG Sound Pack/world/door.wav')
+                            # sound.play(MAIN_SOUND, mode='append-play', loop=True)
                                 
                     elif show_item and inventory[item_idx] == 'shovel':
                         if ('sword' not in inventory) and abs(shovel_pos[0] - pos_x) < 0.001 and abs(shovel_pos[1] -pos_z) < 0.001:
@@ -374,6 +391,7 @@ if __name__ == '__main__':
                     break
 
     finally:
+        sound.close()
         Keyboard.close()
         scr.close()
 
