@@ -1,4 +1,5 @@
 import os.path
+import re
 from enum import Enum
 from typing import Tuple, Union, Optional, NamedTuple, List
 from .utils import Point3f
@@ -9,16 +10,16 @@ Color3i = Tuple[int, int, int]
 Color3f = Tuple[float, float, float]
 
 
-class Color4f():
+class Color4f(NamedTuple):
     r: float
     g: float
     b: float
-    a: float
+    a: float = 1.0
 
-    def __init__(self, r: float, g: float, b: float, a: float = 1.0):
-        assert (0 <= r <= 1.0) and (0 <= g <= 1.0) and (0 <= b <= 1.0) and (0 <= a <= 1.0)
+    # def __init__(self, r: float, g: float, b: float, a: float = 1.0):
+    #     assert (0 <= r <= 1.0) and (0 <= g <= 1.0) and (0 <= b <= 1.0) and (0 <= a <= 1.0)
 
-        self.r, self.g, self.b, self.a = r, g, b, a
+    #     self.r, self.g, self.b, self.a = r, g, b, a
 
     def __add__(self, other: 'Color4f') -> 'Color4f':
         if isinstance(other, Color4f):
@@ -52,6 +53,28 @@ class Color4f():
     def as_3i(self):
         return (int(255 * self.r), int(255 * self.g), int(255 * self.b))
 
+    @classmethod
+    def from_tuple(cls, value: tuple) -> 'Color4f':
+        r, g, b, *a = value
+        a = a[0] if a else 255
+        return Color4f(r/255, g/255, b/255, a/255)
+
+    @classmethod
+    def from_hex(cls, text: str) -> 'Color4f':
+        assert text[0] == '#'
+        text = text[1:].lower()
+        assert len(text) in {3, 4, 6, 8}
+        if len(text) == 3:
+            text += 'f'
+        if len(text) == 4:
+            text = text[0] + text[0] + text[1] + text[1] + text[2] + text[2] + text[3] + text[3]
+        if len(text) == 6:
+            text += 'ff'
+        
+        return Color4f.from_tuple([int(text[i:i+2], 16) for i in range(0, 8, 2)])
+    
+        
+
 
 class Interpolation(Enum):
     NONE = 0
@@ -59,6 +82,8 @@ class Interpolation(Enum):
 
 
 class PNMLoader:
+    METAVAR_REGEX = re.compile(r'\s*#\s*(\w+):\s+(.*)\s*')
+
     @classmethod
     def from_pnm(cls, path: str, *,
                  transparency: Optional[Color3i] = None) -> 'Image':
@@ -69,21 +94,30 @@ class PNMLoader:
         @param crop_to:
         @param transparency:
         """
+        meta = dict()
+        pos = 0
+
+        def read_comment():
+            nonlocal pos
+
+            if lines[pos].strip().startswith(b'#'):
+                match = cls.METAVAR_REGEX.fullmatch(lines[pos].decode('utf-8'))
+                if match:
+                    meta[match.group(1).strip()] = match.group(2).strip()
+                pos += 1
+                return True
+
         with open(path, 'rb') as file:
-            pos = 0
             lines = file.read().split(b"\n")
 
-            while lines[pos].strip().startswith(b'#'):
-                pos += 1
+            while read_comment(): pass
             version = lines[pos].strip()
             assert version in (b'P3', b'P6')
             pos += 1
-            while lines[pos].strip().startswith(b'#'):
-                pos += 1
+            while read_comment(): pass
             width, height = map(int, lines[pos].strip().split())
             pos += 1
-            while lines[pos].strip().startswith(b'#'):
-                pos += 1
+            while read_comment(): pass
             assert lines[pos].strip() == b'255'
             pos += 1
 
@@ -112,7 +146,7 @@ class PNMLoader:
         for y in range(height):
             for x in range(width):
                 texture[x, y] = values[y * width + x]
-
+        texture.meta = meta
         return texture
 
 
@@ -200,12 +234,12 @@ class Image(ImageLoader):
 
         self._width = width
         self._height = height
-        self._data = [Color4f(1.0, 1.0, 1.0, 1.0)] * (width*height)
+        self._data = [Color4f(0.0, 0.0, 0.0, 1.0)] * (width*height)
 
 
     def __setitem__(self, position: Tuple[int, int], value: Union[Color3f, Color4f]):
         if isinstance(value, tuple) and len(value) == 3:
-            value = Color4f(*value)
+            value = Color4f.from_tuple(value)
 
         assert isinstance(value, Color4f), f"{value}"
 

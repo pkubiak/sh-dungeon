@@ -1,11 +1,12 @@
 import logging
 import time
-from typing import Any, Protocol
+from typing import Any, NamedTuple
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-class Activity(Protocol):
+# @runtime_checkable
+class Activity:
     # Base activity methods
     def interact(self, event) -> bool:
         ...
@@ -23,15 +24,28 @@ class Activity(Protocol):
     # def on_return(self, value):
     #     pass
 
+# FIXME: pypy3 doesnt support Protocols
+
+class Event:
+    type: str
+
+
+class KeyboardEvent(NamedTuple):
+    type = 'keyboard'
+    key: str
+
 
 class GameLoop:
     REGISTER = {}
+
+    def __bool__(self):
+        return bool(self.stack)
 
     @classmethod
     def register(cls, name):
         def wrapper(klass):
             assert name not in cls.REGISTER, f"Activity {name} already registered!"
-            assert isinstance(klass, Activity)
+            # assert isinstance(klass, Activity)
             logging.info('Registered %s Activity with %s', name, klass)
             cls.REGISTER[name] = klass
             return klass
@@ -82,11 +96,13 @@ class GameLoop:
             self.stack[-1].on_return(retvalue)
 
     #######
-    def interact(self, event) -> bool:
-        return self.stack[-1].interact(event)
+    def interact(self, event: Event) -> bool:
+        if self.stack:
+            return self.stack[-1].interact(event)
 
-    def render(self, timestamp, screen) -> bool:
-        return self.stack[-1].render(timestamp, screen)
+    def render(self, screen) -> bool:
+        if self.stack:
+            return self.stack[-1].render(0.0, screen)
 
     def wait(self, fps):
         time.sleep(1.0 / fps)
