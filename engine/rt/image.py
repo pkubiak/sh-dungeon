@@ -302,6 +302,19 @@ class Image(ImageLoader):
             for x in range(self.width // width)
         ]
 
+    def imshow(self, other: 'Image', offset: Tuple[int, int] = (0, 0)):
+        ox, oy = offset
+        for y in range(other.height):
+            for x in range(other.width):
+                if (0 <= x + ox < self.width) and (0 <= y + oy < self.height):
+                    color = other[x, y]
+
+                    if color.a == 1.0:
+                        self[x+ox, y+oy] = color.as_3i
+                    elif color.a == 0.0:
+                        pass
+                    else:
+                        raise NotImplementedError('Alpha Blending')
     
     # def interpolate(self, point: Point3f, *, interpolation: Interpolation = Interpolation.NONE) -> Color4f:
     #     # print(point)

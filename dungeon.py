@@ -38,23 +38,30 @@ Like wizardry / HOMM:
 import random, math, time
 from datetime import datetime
 
-from rt.solids import Triangle, Quad
-from rt.utils import Point3f, Ray, Vector3f
-from rt.scene import Scene
-from rt.cameras import PerspectiveCamera
-from rt.renderer import Renderer
-from rt.image import Image, Color4f
-from rt.integrators import RayTracingIntegrator
-from rt.materials import DummyMaterial, FlatMaterial, PhongMaterial
-from rt.world import World
-from rt.lights import PointLight
-from rt.coordmappers import TriangleMapper
-from rt.textures import ConstantTexture, ImageTexture
+from engine.rt.solids import Triangle, Quad
+from engine.rt.utils import Point3f, Ray, Vector3f
+from engine.rt.scene import Scene
+from engine.rt.cameras import PerspectiveCamera
+from engine.rt.renderer import Renderer
+from engine.rt.image import Image, Color4f
+from engine.rt.integrators import RayTracingIntegrator
+from engine.rt.materials import DummyMaterial, FlatMaterial, PhongMaterial
+from engine.rt.world import World
+from engine.rt.lights import PointLight
+from engine.rt.coordmappers import TriangleMapper
+from engine.rt.textures import ConstantTexture, ImageTexture
 
-from font import BOXY_BOLD_FONT_PLUS, MAGIC_FONT
-from screen import Screen, SubPixelScreen
-from keyboard import Keyboard, Keys
-from sound import Sound
+# from engine.font import BOXY_BOLD_FONT_PLUS, MAGIC_FONT
+from engine.screen import SubPixelScreen
+from engine.keyboard import Keyboard, Keys
+from engine.sound import Sound
+
+from engine.drawing.text import puttextblock
+from engine.drawing.utils import clear
+from engine.font import Font
+
+
+FONT = Font('media/fonts/default.pnm')
 
 DEBUG = False
 
@@ -109,7 +116,7 @@ def build_scene(tileset):
 
     # Sky
     # sky_tex = ConstantTexture(Color4f(183/255, 225/255, 243/255, 1.0))
-    sky_tex = ImageTexture(Image.load('./gfx/sky.pnm'), border_handling=ImageTexture.BORDER_REPEAT, interpolation=ImageTexture.INTERPOLATION_LINEAR)
+    sky_tex = ImageTexture(Image.load('media/gfx/sky.pnm'), border_handling=ImageTexture.BORDER_REPEAT, interpolation=ImageTexture.INTERPOLATION_LINEAR)
     sky_mapper = TriangleMapper(Point3f(0.0,0.0,0.0), Point3f(10+width, 0.0, 0.0), Point3f(0.0, 20+height, 0.0))
     sky = FlatMaterial(sky_tex)
 
@@ -161,7 +168,7 @@ def build_scene(tileset):
     DRAGON = create_sprite(tileset[mapping['m']], 1, 1, 0.5, 0, 2.75, 0.5*math.pi)
     s.add(DRAGON)
 
-    tex = Image.load('./gfx/tree.pam')
+    tex = Image.load('media/gfx/tree.pam')
     for i in range(5):
         for j in (0-0.3, 1+0.3):
             r = 0.001*random.random()
@@ -197,224 +204,367 @@ def build_scene(tileset):
                 s.add(q)
     return s
 
-if __name__ == '__main__':
-    # t0 = time.time()
-    # # tileset2 = Image.load('./gfx/ProjectUtumno_full.pam').as_tileset(32, 32)
-    # t1 = time.time()
-    # print(t1 - t0)
 
-    tileset = Image.load('./gfx/tileset.pnm', transparency=(0,255,255)).as_tileset(32,32)
+from types import SimpleNamespace
 
-    s = build_scene(tileset)
+from engine.activity import GameLoop, KeyboardEvent
 
-    output = Image(width=63, height=63)
-    sound = Sound()
-    MAIN_SOUND = "./sound/Memoraphile - Spooky Dungeon.ogg"
-    sound.play(MAIN_SOUND, loop=True)
-    sound_effects = Sound()
-    scr  = SubPixelScreen(output.width, output.height)
+class Inventory:
+    @property
+    def current(self):
+        return self.items[self.idx]
+
+    def __init__(self, items):
+        self.idx = 0
+        self.items = items or []
+
+    def next(self):
+        self.idx = (self.idx+1) % len(self.items)
+
+    def prev(self):
+        self.idx = (self.idx-1) % len(self.items)
+
+
+@GameLoop.register('Dungeon')
+class DungeonActivity:
+    MAIN_SOUND = "media/sound/Memoraphile - Spooky Dungeon.ogg"
+    STEP_LENGTH = 1.0
+    DOF = 100
+    FPT = 5  # frames per turn
+
+    def __init__(self):
+        self.sound = Sound()
+        self.sound.play(self.MAIN_SOUND, loop=True)
+        self.sound_effects = Sound()
+
+        self.tileset = Image.load('media/gfx/tileset.pnm', transparency=(0,255,255)).as_tileset(32,32)
+
+        self.scene = build_scene(self.tileset)
+        self.integrator = RayTracingIntegrator(World(self.scene, None))
+
+        self.inventory = Inventory(['shovel', 'compass'])
+
+        self.env = SimpleNamespace(
+            door_open = False,
+            has_key = False,
+            dragon_hp = 5,
+            debug_mode = False,
+            tresure_pos = (3.5, 2.5),
+        )
+
+        self.states = [(0.5, -0.5, 0.5, -math.pi, 0)]
+
+        self.swords = Image.load('media/gfx/swords2.pnm', transparency=(0,255,255)).as_tileset(32, 32)
+        self.compass = Image.load('media/gfx/compass.pnm', transparency=(0, 255, 255)).as_tileset(32, 32)
+        self.shovel = Image.load('media/gfx/shovel.pnm', transparency=(0,255,255))
+
+        self.overlay_count = 0
+        self.overlay = Image(width=63, height=63)
+        
+    def on_exit(self):
+        self.sound.close()
+        self.sound_effects.close()
+
+    def render(self, timestamp, canvas) -> bool:
+        if self.overlay_count > 0:
+            self.overlay_count -= 1
+            if self.overlay_count == 0:
+                self.states.append(self.prev_state)
     
+        if not self.states:
+            return False
 
-    step_length = 1.0
-    dof = 100
-    states = [(0.5, -0.5, 0.5, -math.pi)]
-    FPT = 5
+        pos_x, pos_y, pos_z, ang, item_pos = self.prev_state = self.states[0]
+        self.states = self.states[1:]
+        # torch.position = Point3f(pos_x, pos_y, pos_z)
 
-    torch_color = Color4f(1.0, 0.95, 0.8, 1.0)
-    torch_intensity = 0.5
+        view_angle = 90 / 180 * math.pi
+        forward = Vector3f(math.sin(ang), 0, math.cos(ang))
+        camera = PerspectiveCamera(Point3f(pos_x, pos_y, pos_z) + (-0.25*forward), forward, Vector3f(0, 1, 0), view_angle, view_angle)
 
-    torch = PointLight(Point3f(0.5, -0.5, 0.5), torch_intensity*torch_color)
-    blue_light = PointLight(Point3f(0.5, -0.5, 0.5), 0.2*Color4f(0.0, 0.0, 1.0, 1.0))
-    integrator = RayTracingIntegrator(World(s, None))
+        r = Renderer(camera, self.integrator)
+        r.render(canvas)
 
-    if DEBUG:
-        integrator.world.lights.extend([torch, blue_light])
-
-    swords = Image.load('gfx/swords2.pnm', transparency=(0,255,255)).as_tileset(32, 32)
-    compass = Image.load('gfx/compass.pnm', transparency=(0, 255, 255)).as_tileset(32, 32)
-    shovel = Image.load('gfx/shovel.pnm', transparency=(0,255,255))
-
-    item_idx = 0
-    inventory = ['compass', 'shovel', 'sword', 'gold_key']
-    shovel_pos = (3.5, 2.5)
-    def get_item():
-        if inventory[item_idx] == 'compass':
-            if 'sword' not in inventory:
-                if (abs(shovel_pos[0] - pos_x) < 0.001) and (abs(shovel_pos[1] - pos_z) < 0.001):
-                    # scr.puttext(0,0, f"{pos_x:.2f} {pos_z:.2f} {ang:.3f}", Color4f(1,1,1,1))
-                    # scr.puttext(0,10, f"{shovel_pos[0]:.2f} {shovel_pos[1]:.2f}", Color4f(1,1,1,1))
-                    compass_idx = random.randint(0,7)
+        if item_pos > 0:
+            if self.inventory.current == 'compass':
+                if self.env.tresure_pos:
+                    if (abs(self.env.tresure_pos[0] - pos_x) < 0.001) and (abs(self.env.tresure_pos[1] - pos_z) < 0.001):
+                        compass_idx = random.randint(0,7)
+                    else:
+                        ang2 = ang - math.atan2(self.env.tresure_pos[0] - pos_x, self.env.tresure_pos[1] - pos_z)
+                        compass_idx = round(-8.0 * (0.5 * ang2 / math.pi)) % 8
                 else:
-                    ang2 = ang - math.atan2(shovel_pos[0] - pos_x, shovel_pos[1] - pos_z)
-                    compass_idx = round(-8.0 * (0.5 * ang2 / math.pi)) % 8
+                    compass_idx = round(-8.0 * (0.5 * ang / math.pi)) % 8
+
+                item = self.compass[compass_idx].hflip(), (30, 36)
+            elif self.inventory.current == 'shovel':
+                item = self.shovel.scale(2), (4, 12)
+            elif self.inventory.current == 'sword':
+                item = self.swords[1].hflip().scale(2), (4, 12)
+            elif self.inventory.current == 'gold_key':
+                item = self.tileset[46*64-10].hflip(), (30, 36)
+            item, pos = item
+            canvas.imshow(item, (pos[0], pos[1] + int(canvas.height*(1-item_pos))))
+
+        if self.overlay_count > 0:
+            canvas.imshow(self.overlay)
+        
+        return True
+        
+    def interact(self, event) -> bool:
+        if self.states:
+            return False
+        key = event.key
+        pos_x, pos_y, pos_z, ang, item_pos = self.prev_state
+        show_item = item_pos > 0
+        if key in (Keys.UP, Keys.DOWN, 'x'):
+            if key == 'x' and not (round(2*pos_x) == 1 and round(2*pos_z) == 5 and self.inventory.current == 'sword' and self.env.dragon_hp is not None):
+                return True
+            mult = -1 if key == Keys.DOWN else 1
+
+            new_pos_x = round(2 * pos_x + mult * math.sin(ang) * self.STEP_LENGTH)
+            new_pos_z = round(2 * pos_z + mult * math.cos(ang) * self.STEP_LENGTH)
+            cell = LEVEL[new_pos_z][new_pos_x]
+
+            if key == 'x':
+                if self.inventory.current == 'sword':
+                    f = [0.1, 0.2, 0.25, 0.2, 0.1, 0.0]
+                    self.env.dragon_hp -= 1
+                    self.sound_effects.play('media/sound/sword-unsheathe.wav')
+                else:
+                    return True
+            elif (cell in (' ', 'd') or (cell == 'X' and not show_item) or (cell == 'D' and self.env.door_open)) and (self.env.dragon_hp is None or new_pos_x!=1 or new_pos_z !=6):
+                f = [(i+1)/self.FPT for i in range(self.FPT)]
+                self.sound_effects.play('sound/RPG Sound Pack/interface/interface2.wav')
             else:
-                compass_idx = round(-8.0 * (0.5 * ang / math.pi)) % 8
+                f = [0.1, 0.25, 0.35, 0.20, 0.1, 0.0]
+                if mult == -1:
+                    f = [0.5*i for i in f]
+                self.sound_effects.play('media/sound/interface1.wav')
 
-            return compass[compass_idx].hflip(), (30, 36)
-        elif inventory[item_idx] == 'shovel':
-            item = shovel.scale(2), (4, 12)
-        elif inventory[item_idx] == 'sword':
-            item = swords[1].hflip().scale(2), (4,12)
-        elif inventory[item_idx] == 'gold_key':
-            item = tileset[46*64-10].hflip(), (30, 36)
-        return item
+            for m in f:
+                self.states.append((pos_x + mult * math.sin(ang)*self.STEP_LENGTH * m, pos_y, pos_z + mult * math.cos(ang)*self.STEP_LENGTH * m, ang, item_pos))
+            
+            if self.env.dragon_hp is not None and self.env.dragon_hp <= 0:
+                self.scene._objects.remove(DRAGON)
+                self.env.dragon_hp = None
+                self.sound_effects.play('media/sound/random1.wav')
 
-    # item = items[item_idx].hflip().scale(2)
-    show_item = False
-    door_open = False
-    has_key = False
-    dragon_hp = 5
-    debug_mode = False
-    try:
-        Keyboard.init()
 
-        while True:
-            if states:
-                pos_x, pos_y, pos_z, ang = states[0]
-                prev_state = states[0]
-                states = states[1:]
-                torch.position = Point3f(pos_x, pos_y, pos_z)
+        if key in (Keys.LEFT, Keys.RIGHT):  # Turn left / right
+            mult = 1 if key == Keys.LEFT else -1
+            for i in range(self.FPT):
+                self.states.append((pos_x, pos_y, pos_z, (ang + mult * math.pi/2 * (i+1) / self.FPT) % (2*math.pi), item_pos))
 
-                view_angle = 90 / 180 * math.pi
-                forward = Vector3f(math.sin(ang), 0, math.cos(ang))
-                camera = PerspectiveCamera(Point3f(pos_x, pos_y, pos_z) + (-0.25*forward), forward, Vector3f(0, 1, 0), view_angle, view_angle)
+        if key == Keys.SPACE:  # Jumping 
+            for j in [-0.2, -0.3, -0.35, -0.3, -0.2, 0.0]:
+                self.states.append((pos_x, pos_y + j, pos_z, ang, item_pos))
+    
+        if key in ('n', 'm'): # Ascend / Descend
+            mult = 1 if key == 'n' else -1
+            for i in range(self.FPT):
+                self.states.append((pos_x, pos_y + 0.45 * mult * (i+1) / self.FPT, pos_z, ang, item_pos))
 
-                r = Renderer(camera, integrator)
-                r.render(output)
-
-                scr.imshow(output)
-                if show_item:
-                    # item, imoff = 
-                    # if inventory[item_idx] == 'compass':
-                    scr.imshow(*get_item())
-                    # elif inventory[item_idx] == 'shovel':
-                        # scr.imshow(item, (8, 16))
-
-                # tttt = "     Dungeon\n   - - - - - - -\n Start game\n  Load game\n    Settings\n\n          Exit".upper()
-                # for dx in (-1, 0, 1):
-                #     for dy in (-1, 0, 1):
-                #         scr.puttext(2+dx, 3+dy, tttt, Color4f(1.0, 1.0, 1.0, 1.0), shadow_color=Color4f(0, 0, 0, 0.75), font=MAGIC_FONT)
-                # scr.puttext(2, 3, tttt, Color4f(1.0, 0, 0, 1.0), shadow_color=Color4f(0, 0, 0, 0.75), font=BOXY_BOLD_FONT_PLUS)
-                if debug_mode:
-                    scr.puttext(0,0, f"{pos_x:.2f} {pos_z:.2f}\n{ang:.3f}", Color4f(1,1,1,1))
-                scr.sync()
+        if key in '<>' and item_pos > 0:  # Switch active inventory item
+            self.inventory.prev() if key == '<' else self.inventory.next()
+            self.states.append((pos_x, pos_y, pos_z, ang, item_pos))
+        
+        if key == '?':
+            if show_item:
+                for i in range(self.FPT):
+                    self.states.append((pos_x, pos_y, pos_z, ang, 1 - (i+1)/self.FPT))
             else:
-                Keyboard.clear()
-                key = Keyboard.getch()
-                if key in (Keys.UP, Keys.DOWN, 'x'):
-                    if key == 'x' and not (round(2*pos_x) == 1 and round(2*pos_z) == 5 and show_item and dragon_hp is not None):
-                        continue
-                    mult = -1 if key == Keys.DOWN else 1
+                for i in range(self.FPT):
+                    self.states.append((pos_x, pos_y, pos_z, ang, (i+1)/self.FPT))
 
-                    new_pos_x = round(2 * pos_x + mult * math.sin(ang) * step_length)
-                    new_pos_z = round(2 * pos_z + mult * math.cos(ang) * step_length)
-                    cell = LEVEL[new_pos_z][new_pos_x]
-                    if key == 'x':
-                        if show_item and inventory[item_idx] == 'sword':
-                            f = [0.1, 0.2, 0.25, 0.2, 0.1, 0.0]
-                            dragon_hp -= 1
-                            sound_effects.play('sound/RPG Sound Pack/battle/sword-unsheathe.wav')
-                        else:
-                            continue
-                    elif (cell in (' ', 'd') or (cell == 'X' and not show_item) or (cell == 'D' and door_open)) and (dragon_hp is None or new_pos_x!=1 or new_pos_z !=6):
-                        f = [(i+1)/FPT for i in range(FPT)]
-                        sound_effects.play('sound/RPG Sound Pack/interface/interface2.wav')
+        if key == 'e':
+            new_pos_x = round(2 * pos_x + math.sin(ang) * self.STEP_LENGTH)
+            new_pos_z = round(2 * pos_z + math.cos(ang) * self.STEP_LENGTH)
+
+            if not show_item:
+                if LEVEL[new_pos_z][new_pos_x] == 'D' and not self.env.door_open:
+                    clear(self.overlay, Color4f(0,0,0,0))
+                    puttextblock(self.overlay, 6, 10, 63, "Locked!!!", font_color=(255,255,255), font=FONT, shadow_color=(0,0,0))
+                    self.overlay_count = 50
+                if round(2*pos_x) == 3 and round(2*pos_z) == 9 and not self.env.has_key:
+                    TEXTURES['c'].texture = ImageTexture(self.tileset[45*64+45])
+                    self.env.has_key = True
+                    clear(self.overlay, Color4f(0,0,0,0))
+                    puttextblock(self.overlay, 6, 10, 63, "You found", font_color=(255,255,255), font=FONT, shadow_color=(0,0,0))
+                    puttextblock(self.overlay, 6, 22, 63, "   Gold Key", font_color=(255,255,0), font=FONT, shadow_color=(0,0,0))
+                    self.overlay_count = 50
+                    self.inventory.items.append('gold_key')
+            elif show_item and self.inventory.current == 'gold_key':
+                if LEVEL[new_pos_z][new_pos_x] == 'D':
+                    if self.env.door_open:
+                        TEXTURES['D'].texture = ImageTexture(self.tileset[11*64+32-5-4])
                     else:
-                        f = [0.1, 0.25, 0.35, 0.20, 0.1, 0.0]
-                        if mult == -1:
-                            f = [0.5*i for i in f]
-                        sound_effects.play('sound/RPG Sound Pack/interface/interface1.wav')
+                        TEXTURES['D'].texture = ImageTexture(self.tileset[11*64+32-5])
+                    self.env.door_open = not self.env.door_open
+                    self.sound_effects.play('media/sound/door.wav')
+                        
+            elif show_item and self.inventory.current == 'shovel':
+                if self.env.tresure_pos and abs(self.env.tresure_pos[0] - pos_x) < 0.01 and abs(self.env.tresure_pos[1] -pos_z) < 0.01:
+                    clear(self.overlay, Color4f(0,0,0,0))
+                    puttextblock(self.overlay, 6, 10, 63, "You found", font_color=(255,255,255), font=FONT, shadow_color=(0,0,0))
+                    puttextblock(self.overlay, 6, 22, 63, "Long Sword", font_color=(255,255,0), font=FONT, shadow_color=(0,0,0))
+                    self.overlay_count = 50
+                    self.inventory.items.append('sword')
+                    self.env.tresure_pos = None
+                else:
+                    clear(self.overlay, Color4f(0,0,0,0))
+                    puttextblock(self.overlay, 6, 10, 63, "You dig!!!", font_color=(255,255,255), font=FONT, shadow_color=(0,0,0))
+                    self.overlay_count = 50
+                
+            self.states.append(self.prev_state)
 
-                    for m in f:
-                        states.append((pos_x + mult * math.sin(ang)*step_length * m, pos_y, pos_z + mult * math.cos(ang)*step_length * m, ang))
-                    
-                    if dragon_hp is not None and dragon_hp <= 0:
-                        s._objects.remove(DRAGON)
-                        dragon_hp = None
-                        sound_effects.play('sound/RPG Sound Pack/misc/random1.wav')
+        if key == Keys.ESC:
+            self.loop.exit()
+    
+        return True
 
-                if key in ('n', 'm'): # Ascend descend
-                    mult = 1 if key == 'n' else -1
-                    for i in range(FPT):
-                        states.append((pos_x, pos_y + 0.45 * mult * (i+1) / FPT, pos_z, ang))
-                if key in (Keys.LEFT, Keys.RIGHT):
-                    mult = 1 if key == Keys.LEFT else -1
-                    for i in range(FPT):
-                        states.append((pos_x, pos_y, pos_z, (ang + mult * math.pi/2 * (i+1) / FPT) % (2*math.pi)))
-                if key == Keys.SPACE:
-                    for j in [-0.2, -0.3, -0.35, -0.3, -0.2, 0.0]:
-                        states.append((pos_x, pos_y + j, pos_z, ang))
-                # if key in (Keys.PAGE_UP, Keys.PAGE_DOWN):
-                #     torch_intensity += 0.1 if key == Keys.PAGE_UP else -0.1
-                #     torch.intensity = torch_intensity * torch_color
-                #     states.append((pos_x, pos_y, pos_z, ang))
-                if key in '<>':
-                    item_idx = (item_idx + (1 if key == '>' else -1)) % len(inventory)
-                    # item = items[item_idx].hflip().scale(2)
-                    states.append((pos_x, pos_y, pos_z, ang))
-                if key == 'e':
-                    new_pos_x = round(2 * pos_x + math.sin(ang) * step_length)
-                    new_pos_z = round(2 * pos_z + math.cos(ang) * step_length)
-                    if not show_item:
-                        if LEVEL[new_pos_z][new_pos_x] == 'D' and not door_open:
-                            scr.puttext(6, 10, "Locked!!!", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
-                            scr.sync()
-                            time.sleep(1)
-                        if round(2*pos_x) == 3 and round(2*pos_z) == 9 and not has_key:
-                            TEXTURES['c'].texture = ImageTexture(tileset[45*64+45])
-                            has_key = True
-                            scr.puttext(6, 10, "You found", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
-                            scr.puttext(6, 22, "   Gold Key", Color4f(1.0,1.0, 0.0), shadow_color=Color4f(0,0,0,1))
-                            inventory.append('gold_key')
-                            scr.sync()
-                            time.sleep(1)
-                    elif show_item and inventory[item_idx] == 'gold_key':
-                        if LEVEL[new_pos_z][new_pos_x] == 'D':
-                            if door_open:
-                                TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5-4])
-                            else:
-                                TEXTURES['D'].texture = ImageTexture(tileset[11*64+32-5])
-                            door_open = not door_open
-                            sound_effects.play('./sound/RPG Sound Pack/world/door.wav')
-                            # sound.play(MAIN_SOUND, mode='append-play', loop=True)
-                                
-                    elif show_item and inventory[item_idx] == 'shovel':
-                        if ('sword' not in inventory) and abs(shovel_pos[0] - pos_x) < 0.001 and abs(shovel_pos[1] -pos_z) < 0.001:
-                            scr.puttext(6, 10, "You found", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
-                            scr.puttext(4, 22, "Long Sword", Color4f(1.0,1.0, 0.0), shadow_color=Color4f(0,0,0,1))
-                            inventory.append('sword')
-                        else:
-                            scr.puttext(6, 10, "You dig!!!", Color4f(1.0,1.0,1.0), shadow_color=Color4f(0,0,0,1))
-                        scr.sync()
-                        time.sleep(1)
-                    states.append(prev_state)
-                if key == '?':
-                    im, imof = get_item()
-                    if show_item:
-                        for i in range(8):
-                            scr.imshow(output)
-                            scr.imshow(im, (imof[0], imof[1] + 8 * i))
-                            scr.sync()
-                            time.sleep(0.1)
-                        show_item = False
-                    else:
-                        for i in reversed(range(8)):
-                            scr.imshow(output)
-                            scr.imshow(im, (imof[0], imof[1] + 8 * i))
-                            scr.sync()
-                            time.sleep(0.1)
-                        show_item = True
-                if key == 'q':
-                    debug_mode = not debug_mode
-                    states.append(prev_state)
-                if key == 's':
-                    scr.save_to_pnm(f'/tmp/out-{datetime.now()}.pnm')
-                if key == Keys.ESC:
+
+
+################3
+class GenericMenuActivity:
+    def __init__(self):
+        assert (self.OPTIONS) and (self.TITLE)
+        self.font = Font('media/fonts/default.pnm')
+        self.index = 0
+        self.redraw = True
+
+    def interact(self, event):
+        self.redraw = True
+        if event.key == Keys.UP:
+            self.index -= 1
+        elif event.key == Keys.DOWN:
+            self.index += 1
+        elif event.key == Keys.ESC:
+            self.loop.exit()
+        elif hasattr(self, f"interact_{self.index}"):
+            getattr(self, f"interact_{self.index}")(event)
+
+        self.index %= len(self.OPTIONS)
+
+        return True
+
+    def render(self, timestamp, canvas):
+        if not self.redraw:
+            return False
+        self.redraw = False
+        clear(canvas, (128,128,128))
+
+        puttextblock(canvas, 0, 4, canvas.width, self.TITLE, font_color=(255,0,0), font=self.font, shadow_color=(0,0,0), align='center')
+
+        for i, value in enumerate(self.OPTIONS):
+            puttextblock(
+                canvas,
+                0, int((1.5+i)*(self.font.line_height+1)) + 4,
+                canvas.width,
+                value,
+                font_color=(255,255,0) if i == self.index else (255,0,0),
+                font=self.font, shadow_color=(70,0, 0), align='center')
+
+        return True
+
+
+@GameLoop.register('MainMenu')
+class MainMenuActivity(GenericMenuActivity):
+    TITLE = 'Main Menu'
+    OPTIONS = ['New Game', 'Settings', 'Read Text', 'Help', 'Exit']
+    
+    def interact_0(self, event):
+        if event.key == Keys.ENTER:
+            self.loop.enter('Dungeon')
+
+    def interact_1(self, event):
+        if event.key == Keys.ENTER:
+            self.loop.enter('SettingMenu')
+    
+    def interact_2(self, event):
+        self.loop.enter('ScrollingText', text='Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.')
+        
+    def interact_3(self, event):
+        self.loop.enter('ScrollingText', text='Sed orci luctus et magnis dis parturient montes, nascetur ridiculus mus. Vivamus hendrerit tellus porttitor magna. Donec nonummy eget, rutrum ac, tempus erat'.upper())
+
+    def interact_4(self, event):
+        if event.key == Keys.ENTER:
+            self.loop.exit()
+
+
+@GameLoop.register('SettingMenu')
+class SettingMenuActivity(GenericMenuActivity):
+    TITLE = '- Settings -'
+    OPTIONS = ['Music: ON', 'Sound: OFF', 'Res: 63x63', 'Key: ?', 'Back']
+    
+    def interact_0(self, event):
+        if event.key in {Keys.LEFT, Keys.RIGHT, Keys.ENTER}:
+            self.OPTIONS[0] = 'Music: OFF' if self.OPTIONS[0] == 'Music: ON' else 'Music: ON'
+        # self.loop.exit()
+
+    def interact_3(self, event):
+        self.OPTIONS[3] = f"Key: {event.key}"
+
+    def interact_4(self, event):
+        self.loop.exit()
+
+@GameLoop.register('ScrollingText')
+class ScrollingTextActivity:
+    def __init__(self, text: str):
+        self.text = text
+        self.offset = 0
+        self.redraw = True
+        self.font = Font('media/fonts/default.pnm')
+
+    def interact(self, event):
+        self.redraw = True
+        if event.key == Keys.UP:
+            self.offset += 5
+        elif event.key == Keys.DOWN:
+            self.offset -= 5
+        elif event.key == Keys.ESC:
+            self.loop.exit()
+        else:
+            self.redraw = False
+
+        return True
+    
+    def render(self, timestamp, canvas):
+        self.offset -= 1
+        self.redraw = False
+        clear(canvas, (100, 100, 100))
+        puttextblock(canvas, 0, self.offset, canvas.width, self.text, font_color=(255,0,0), font=self.font, shadow_color=(70,0,0), align='center')
+
+        return True
+
+##################
+
+
+def main():
+    loop = GameLoop()
+    loop.enter('MainMenu')
+    Keyboard.init()
+
+    event = None
+
+    with SubPixelScreen(width=63, height=63) as screen:
+
+        while loop:
+            while True:
+                if event is None:
+                    key = Keyboard.getch(block=False)
+                    if key is None:
+                        break
+                    event = KeyboardEvent(key=key)
+
+                if not loop.interact(event):
                     break
+                event = None
 
-    finally:
-        sound.close()
-        Keyboard.close()
-        scr.close()
+            if loop.render(screen.canvas):
+                screen.sync()
 
+            loop.wait(30)
 
+if __name__ == '__main__':
+    main()
