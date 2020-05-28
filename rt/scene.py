@@ -12,15 +12,15 @@ class Scene:
     def add(self, obj: Solid):
         self._objects.append(obj)
 
-    def intersect(self, r: Ray, previous_best: Optional[float] = None) -> Optional[Intersection]:
-        best, best_obj = previous_best, None
+    def intersect(self, r: Ray, previous_best: Optional[Intersection] = None, lower_bound: Optional[Intersection] = None) -> Optional[Intersection]:
+        best = previous_best
 
         for obj in self._objects:
             intersection = obj.intersect(r, best)
-            if intersection and (best is None or intersection.distance < best):
-                best, best_obj = intersection.distance, intersection
+            if intersection and (lower_bound is None or lower_bound < intersection) and (best is None or intersection < best):
+                best = intersection
 
-        return best_obj
+        return best
 
 
 

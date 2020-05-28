@@ -164,9 +164,10 @@ def build_scene(tileset):
     tex = Image.load('./gfx/tree.pam')
     for i in range(5):
         for j in (0-0.3, 1+0.3):
-            tree = create_sprite(tex, 2, 3, -0.5 - i, 0.3, j)
+            r = 0.001*random.random()
+            tree = create_sprite(tex, 2, 3, -0.5 - i + r, 0.3 + r, j+r)
             s.add(tree)
-            tree = create_sprite(tex, 2, 3, -0.5 - i, 0.3, j, 0.5*math.pi)
+            tree = create_sprite(tex, 2, 3, -0.5 - i + r, 0.3 + r, j+r, 0.5*math.pi)
             s.add(tree)
 
     queen = Quad(Point3f(-1, -0.75, 1.25), Vector3f(0, 0.75, 0), Vector3f(0.75, 0, 0), material=TEXTURES['q'], coord_mapper=mapper)

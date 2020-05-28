@@ -19,3 +19,8 @@ class Intersection(NamedTuple):
     @property
     def hit_point(self):
         return self.ray(self.distance)
+
+    def __lt__(self, other: 'Intersection') -> bool: 
+        if self.ray.d != other.ray.d or self.ray.o != other.ray.o:
+            raise RuntimeError("Can't compare intersections of different rays")
+        return self.distance < other.distance

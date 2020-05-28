@@ -18,13 +18,13 @@ class Quad(Solid):
         self.coord_mapper = coord_mapper
 
 
-    def intersect(self, ray: Ray, previous_best: Optional[float] = None) -> Optional[Intersection]:
+    def intersect(self, ray: Ray, previous_best: Optional[Intersection] = None) -> Optional[Intersection]:
         try:
             ti = Vector3f.dot(self.normal, self.p0 - ray.o) / Vector3f.dot(ray.d, self.normal)
         except ZeroDivisionError:
             return None
 
-        if ti < 0 or (previous_best is not None and ti > previous_best):
+        if ti < 0 or (previous_best is not None and (ti > previous_best.distance or (ti == previous_best.distance and id(previous_best.solid) >= id(self)))):
             return None
 
         # compute barycentric coordinates
