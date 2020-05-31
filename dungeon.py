@@ -225,7 +225,7 @@ class Inventory:
         self.idx = (self.idx-1) % len(self.items)
 
 
-@GameLoop.register('Dungeon')
+@GameLoop.register('GamePlay')
 class DungeonActivity:
     MAIN_SOUND = "media/sound/Memoraphile - Spooky Dungeon.ogg"
     STEP_LENGTH = 1.0
@@ -330,17 +330,17 @@ class DungeonActivity:
                 if self.inventory.current == 'sword':
                     f = [0.1, 0.2, 0.25, 0.2, 0.1, 0.0]
                     self.env.dragon_hp -= 1
-                    self.sound_effects.play('media/sound/sword-unsheathe.wav')
+                    self.sound_effects.play('media/sound/sword-unsheathe.ogg')
                 else:
                     return True
             elif (cell in (' ', 'd') or (cell == 'X' and not show_item) or (cell == 'D' and self.env.door_open)) and (self.env.dragon_hp is None or new_pos_x!=1 or new_pos_z !=6):
                 f = [(i+1)/self.FPT for i in range(self.FPT)]
-                self.sound_effects.play('sound/RPG Sound Pack/interface/interface2.wav')
+                self.sound_effects.play('media/sound/interface2.ogg')
             else:
                 f = [0.1, 0.25, 0.35, 0.20, 0.1, 0.0]
                 if mult == -1:
                     f = [0.5*i for i in f]
-                self.sound_effects.play('media/sound/interface1.wav')
+                self.sound_effects.play('media/sound/interface1.ogg')
 
             for m in f:
                 self.states.append((pos_x + mult * math.sin(ang)*self.STEP_LENGTH * m, pos_y, pos_z + mult * math.cos(ang)*self.STEP_LENGTH * m, ang, item_pos))
@@ -348,7 +348,7 @@ class DungeonActivity:
             if self.env.dragon_hp is not None and self.env.dragon_hp <= 0:
                 self.scene._objects.remove(DRAGON)
                 self.env.dragon_hp = None
-                self.sound_effects.play('media/sound/random1.wav')
+                self.sound_effects.play('media/sound/random1.ogg')
 
 
         if key in (Keys.LEFT, Keys.RIGHT):  # Turn left / right
@@ -401,7 +401,7 @@ class DungeonActivity:
                     else:
                         TEXTURES['D'].texture = ImageTexture(self.tileset[11*64+32-5])
                     self.env.door_open = not self.env.door_open
-                    self.sound_effects.play('media/sound/door.wav')
+                    self.sound_effects.play('media/sound/door.ogg')
                         
             elif show_item and self.inventory.current == 'shovel':
                 if self.env.tresure_pos and abs(self.env.tresure_pos[0] - pos_x) < 0.01 and abs(self.env.tresure_pos[1] -pos_z) < 0.01:
@@ -432,6 +432,7 @@ class GenericMenuActivity:
         self.font = Font('media/fonts/default.pnm')
         self.index = 0
         self.redraw = True
+        self.background = Image.load(self.BACKGROUND) if hasattr(self, 'BACKGROUND') else None
 
     def interact(self, event):
         self.redraw = True
@@ -452,7 +453,10 @@ class GenericMenuActivity:
         if not self.redraw:
             return False
         self.redraw = False
-        clear(canvas, (128,128,128))
+        if self.background:
+            canvas.imshow(self.background, (0, 0))
+        else:
+            clear(canvas, (128,128,128))
 
         puttextblock(canvas, 0, 4, canvas.width, self.TITLE, font_color=(255,0,0), font=self.font, shadow_color=(0,0,0), align='center')
 
@@ -470,23 +474,21 @@ class GenericMenuActivity:
 
 @GameLoop.register('MainMenu')
 class MainMenuActivity(GenericMenuActivity):
-    TITLE = 'Main Menu'
-    OPTIONS = ['New Game', 'Settings', 'Read Text', 'Help', 'Exit']
+    TITLE = 'sh-dungeon'
+    OPTIONS = ['New Game', 'Load Game', 'Settings', 'Help', 'Exit']
+    BACKGROUND = 'media/gfx/main-menu-bg.pnm'
     
     def interact_0(self, event):
         if event.key == Keys.ENTER:
-            self.loop.enter('Dungeon')
+            self.loop.enter('GamePlay')
 
-    def interact_1(self, event):
+    def interact_2(self, event):
         if event.key == Keys.ENTER:
             self.loop.enter('SettingMenu')
     
-    def interact_2(self, event):
+    def interact_3(self, event):
         self.loop.enter('ScrollingText', text='Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.')
         
-    def interact_3(self, event):
-        self.loop.enter('ScrollingText', text='Sed orci luctus et magnis dis parturient montes, nascetur ridiculus mus. Vivamus hendrerit tellus porttitor magna. Donec nonummy eget, rutrum ac, tempus erat'.upper())
-
     def interact_4(self, event):
         if event.key == Keys.ENTER:
             self.loop.exit()

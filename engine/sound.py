@@ -1,3 +1,4 @@
+import os
 import subprocess
 import tempfile 
 import socket
@@ -7,9 +8,9 @@ import time
 class Sound:
     def __init__(self):
         self.socket_name = tempfile.mktemp()
-        print(self.socket_name)
         self.process = subprocess.Popen(['mpv', '--idle', f"--input-ipc-server={self.socket_name}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(1)
+        while not os.path.exists(self.socket_name):
+            time.sleep(0.1)
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.socket.connect(self.socket_name)
 
