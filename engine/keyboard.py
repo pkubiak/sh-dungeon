@@ -24,6 +24,21 @@ class Keys:
     TAB = 'KEY_TAB'
     INSERT = 'KEY_INSERT'
     DELETE = 'KEY_DELETE'
+    END = 'KEY_END'
+    HOME = 'KEY_HOME'
+    F1 = 'KEY_F1'
+    F2 = 'KEY_F2'
+    F3 = 'KEY_F3'
+    F4 = 'KEY_F4'
+    F5 = 'KEY_F5'
+    F6 = 'KEY_F6'
+    F7 = 'KEY_F7'
+    F8 = 'KEY_F8'
+    F9 = 'KEY_F9'
+    F10 = 'KEY_F10'
+    F11 = 'KEY_F11'
+    F12 = 'KEY_F12'
+
 
     KEYS_TABLE = {
         9: TAB,
@@ -33,15 +48,32 @@ class Keys:
         127: BACKSPACE,
     }
 
-    SPECIAL_KEYS_TABLE = {
-        50: INSERT,
-        51: DELETE,
-        53: PAGE_UP,
-        54: PAGE_DOWN,
-        65: UP,
-        66: DOWN,
-        67: RIGHT,
-        68: LEFT,
+    SS3_MAPPING = {
+        80: F1,
+        81: F2,
+        82: F3,
+        83: F4,
+    }
+
+    CSI_TABLE = {
+        '2': INSERT,
+        '3': DELETE,
+        '5': PAGE_UP,
+        '6': PAGE_DOWN,
+        '15': F5,
+        '17': F6,
+        '18': F7,
+        '19': F8,
+        '20': F9,
+        '21': F10,
+        '23': F11,
+        '24': F12,
+        'A': UP,
+        'B': DOWN,
+        'C': RIGHT,
+        'D': LEFT,
+        'F': END,
+        'H': HOME,
     }
 
 
@@ -52,13 +84,14 @@ class Keyboard:
     @see: https://stackoverflow.com/a/2409034/5822988
     """
 
-    ANSI_SEQ = '\033['
+    CSI = '\033['  # Control Sequence Introducer
+    SS3 = '\033O'  # Single Shift Select of G3 Character Set
     EXTENDED_ANSI_SEQ = '\033[1;'
 
     _initialized = False
     _buffer = deque()
 
-    @classmethod 
+    @classmethod
     def _has_data(cls, wait: bool = False) -> bool:
         """Check if there is some data in sys.stdin and wait for it if needed."""
         return select.select([sys.stdin], [], [], None if wait else 0) == ([sys.stdin], [], [])
@@ -68,7 +101,7 @@ class Keyboard:
         return bool(getattr(cls, '_original_settings', None))
 
     @classmethod
-    def init(cls): 
+    def init(cls):
         cls._original_settings = termios.tcgetattr(sys.stdin)
         tty.setcbreak(sys.stdin.fileno())
 
@@ -90,18 +123,31 @@ class Keyboard:
         data = data.decode('utf-8')  # WARNING: to support unicode keys
 
         while data:
-            if data.startswith(cls.EXTENDED_ANSI_SEQ): 
+            if data.startswith(cls.SS3):
+                key = Keys.SS3_MAPPING[ord(data[2])]
+                data = data[3:]
+            elif data.startswith(cls.EXTENDED_ANSI_SEQ):
                 assert len(data) >= 6
                 # TODO: data[4] is modifier keys and is not supported at that moment
-                key = Keys.SPECIAL_KEYS_TABLE[ord(data[5])]
+                key = Keys.CSI_TABLE[data[5]]
+
                 data = data[6:]
-            elif data.startswith(cls.ANSI_SEQ): 
+            elif data.startswith(cls.CSI):
                 assert len(data) >= 3
-                key = Keys.SPECIAL_KEYS_TABLE[ord(data[2])]
-                data = data[3:]
+                if '0' <= data[2] <= '9':
+                    assert '~' in data
+                    pos = data.index('~')
+                    code = data[2:pos]
+                    if ';' in code:
+                        code = code.split(';')[0]
+                    data = data[pos+1:]
+                else:
+                    code = data[2]
+                    data = data[3:]
+
+                key = Keys.CSI_TABLE[code]
             else: # Normal key
                 key = Keys.KEYS_TABLE.get(ord(data[0]), data[0])
-                # print('>>', ord(data[0]))
                 data = data[1:]
 
             cls._buffer.append(key)
@@ -114,7 +160,7 @@ class Keyboard:
         """
         if not cls.is_initialized():
             raise RuntimeError('You must initialize Keyboard first!')
-        
+
         if len(cls._buffer) > 0:
             return cls._buffer.popleft()
 
@@ -122,7 +168,7 @@ class Keyboard:
             return None
 
         cls._read_into_buffer()  # put new keys into buffer
-        
+
         return cls._buffer.popleft()
 
     @classmethod
@@ -142,4 +188,4 @@ if __name__ == '__main__':
         if key == Keys.ESC:
             break
 
-    Keyboard.close() 
+    Keyboard.close()
