@@ -48,7 +48,7 @@ class Color4f(NamedTuple):
         if isinstance(other, Color4f):
             return (self.r == other.r and self.g == other.g and self.b == other.b and self.a == other.a)
         return False
-    
+
     @property
     def as_3i(self):
         return (int(255 * self.r), int(255 * self.g), int(255 * self.b))
@@ -58,6 +58,14 @@ class Color4f(NamedTuple):
         r, g, b, *a = value
         a = a[0] if a else 255
         return Color4f(r/255, g/255, b/255, a/255)
+
+    @classmethod
+    def from_int(cls, value: int) -> 'Color4f':
+        r = (value & 0xff0000) >> 16
+        g = (value & 0x00ff00) >> 8
+        b = (value & 0x0000ff) >> 0
+        # print(r,g,b)
+        return Color4f(r/255, g/255, b/255, 1.0)
 
     @classmethod
     def from_hex(cls, text: str) -> 'Color4f':
@@ -70,10 +78,8 @@ class Color4f(NamedTuple):
             text = text[0] + text[0] + text[1] + text[1] + text[2] + text[2] + text[3] + text[3]
         if len(text) == 6:
             text += 'ff'
-        
+
         return Color4f.from_tuple([int(text[i:i+2], 16) for i in range(0, 8, 2)])
-    
-        
 
 
 class Interpolation(Enum):
@@ -89,7 +95,7 @@ class PNMLoader:
                  transparency: Optional[Color3i] = None) -> 'Image':
         """
         Read texture from P3 (RGB ascii) or P6 (RGB raw) PNM format.
-        
+
         @param path:
         @param crop_to:
         @param transparency:
@@ -135,10 +141,10 @@ class PNMLoader:
 
                 for i in range(0, width*height):
                     r, g, b = data[3*i: 3*i+3]
-                    
+
                     color = Color4f(r/255, g/255, b/255, 0.0 if (r, g, b) == transparency else 1.0)
                     values.append(color)
-                
+
             assert len(values) == width * height
 
         # Build Image instance
@@ -172,7 +178,7 @@ class PAMLoader:
             width, = map(int, cls._readline(file, b'WIDTH'))
             height, = map(int, cls._readline(file, b'HEIGHT'))
             depth, = map(int, cls._readline(file, b'DEPTH'))
-            
+
             maxval, = map(int, cls._readline(file, b'MAXVAL'))
             assert maxval == 255
 
@@ -211,7 +217,7 @@ class ImageLoader:
 
         if crop_to:
             image = image.crop(crop_to)
-            
+
         return image
 
 class Image(ImageLoader):
@@ -258,7 +264,7 @@ class Image(ImageLoader):
     def crop(self, crop_to: Rect) -> 'Image':
         """
         Crop texture to given rectangle.
-        
+
         @param crop_to_: (x0, y0, x1, y1)
         """
         x0, y0, x1, y1 = crop_to
@@ -270,7 +276,7 @@ class Image(ImageLoader):
                 texture[x - x0, y - y0] = self[x,y]
 
         return texture
-    
+
     def hflip(self) -> 'Image':
         out = Image(width=self.width, height=self.height)
         for y in range(self.height):
@@ -281,11 +287,11 @@ class Image(ImageLoader):
     def scale(self, scale_x: int, scale_y: Optional[int] = None) -> 'Image':
         if not scale_y:
             scale_y = scale_x
-            
+
         assert isinstance(scale_x, int) and scale_x > 0 and isinstance(scale_y, int) and scale_y > 0
 
         out = Image(width=scale_x*self.width, height=scale_y*self.height)
-        
+
         for y in range(self.height):
             for x in range(self.width):
                 for i in range(scale_x):
@@ -304,25 +310,24 @@ class Image(ImageLoader):
 
     def imshow(self, other: 'Image', offset: Tuple[int, int] = (0, 0)):
         ox, oy = offset
-        for y in range(other.height):
-            for x in range(other.width):
-                if (0 <= x + ox < self.width) and (0 <= y + oy < self.height):
-                    color = other[x, y]
+        lx, ly = min(self.width - ox, other.width), min(self.height - oy, other.height)
+        for y in range(ly):
+            for x in range(lx):
+                color = other[x, y]
 
-                    if color.a == 1.0:
-                        self[x+ox, y+oy] = color.as_3i
-                    elif color.a == 0.0:
-                        pass
-                    else:
-                        raise NotImplementedError('Alpha Blending')
-    
+                if color.a == 1.0:
+                    self[x+ox, y+oy] = color.as_3i
+                elif color.a == 0.0:
+                    pass
+                else:
+                    raise NotImplementedError('Alpha Blending')
+
     # def interpolate(self, point: Point3f, *, interpolation: Interpolation = Interpolation.NONE) -> Color4f:
     #     # print(point)
     #     x, y = round((self.width-1) * point.x), round((self.height-1) * point.y)
     #     return self[x, y]
     #     # raise NotImplementedError()
 
- 
 
 if __name__ == '__main__':
     torch = Image.load('gfx/torch.pnm')
