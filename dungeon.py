@@ -56,8 +56,8 @@ from engine.screen import SubPixelScreen
 from engine.keyboard import Keyboard, Keys
 from engine.sound import Sound
 
-from engine.drawing.text import puttextblock
-from engine.drawing.utils import clear
+from engine.drawing.text import puttextblock, puttext, measure_text
+from engine.drawing.draw import clear
 from engine.font import Font
 
 
@@ -425,7 +425,7 @@ class DungeonActivity:
 
 
 
-################3
+################
 class GenericMenuActivity:
     def __init__(self):
         assert (self.OPTIONS) and (self.TITLE)
@@ -498,7 +498,7 @@ class MainMenuActivity(GenericMenuActivity):
 class SettingMenuActivity(GenericMenuActivity):
     TITLE = '- Settings -'
     OPTIONS = ['Music: ON', 'Sound: OFF', 'Res: 63x63', 'Key: ?', 'Back']
-    
+
     def interact_0(self, event):
         if event.key in {Keys.LEFT, Keys.RIGHT, Keys.ENTER}:
             self.OPTIONS[0] = 'Music: OFF' if self.OPTIONS[0] == 'Music: ON' else 'Music: ON'
@@ -530,7 +530,7 @@ class ScrollingTextActivity:
             self.redraw = False
 
         return True
-    
+
     def render(self, timestamp, canvas):
         self.offset -= 1
         self.redraw = False
@@ -542,15 +542,15 @@ class ScrollingTextActivity:
 ##################
 
 
-def main():
+
+def default_loop(activity='MainMenu', **kwargs):
     loop = GameLoop()
-    loop.enter('MainMenu')
+    loop.enter(activity, **kwargs)
     Keyboard.init()
 
     event = None
 
     with SubPixelScreen(width=63, height=63) as screen:
-
         while loop:
             while True:
                 if event is None:
@@ -569,4 +569,4 @@ def main():
             loop.wait(30)
 
 if __name__ == '__main__':
-    main()
+    default_loop()

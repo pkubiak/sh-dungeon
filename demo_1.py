@@ -4,7 +4,7 @@ from engine.keyboard import Keyboard, Keys
 from engine.rt.image import Image
 from engine.font import Font
 from engine.drawing.text import puttext, puttextblock
-from engine.drawing.utils import clear
+from engine.drawing.draw import clear
 
 import random
 
