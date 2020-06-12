@@ -7,6 +7,7 @@ import time
 from typing import Optional
 from collections import deque
 
+# TODO: Handle key modifiers (shift, alt, ctrl)
 
 class Keys:
     """Keyboard keys mapping constants."""
@@ -74,6 +75,7 @@ class Keys:
         'D': LEFT,
         'F': END,
         'H': HOME,
+        'Z': TAB  # WARNING: with SHIFT
     }
 
 
