@@ -11,6 +11,12 @@ def blend(background: Color4f, foreground: Color4f) -> Color4f:
 def getbbox(text: str, font: Font) -> Tuple[int, int]:
     pass
 
+def measure_text(text: str, font):
+    width = 0
+    for char in text:
+        width += (2 if char == ' ' else font.glyphs.get(char, font.glyphs['?']).width) + font.char_spacing
+    return width
+
 def puttextblock(image: Image, x0, y0, line_width, text, *, font_color, font, shadow_color=None, align='left'):
     pos = start = width = 0
     text += '\n'
@@ -18,8 +24,9 @@ def puttextblock(image: Image, x0, y0, line_width, text, *, font_color, font, sh
         if text[pos] == ' ':
             new_width = width + 2
         elif text[pos] != '\n':
-            new_width = width + font.glyphs[text[pos]].width + font.char_spacing
-        
+            new_width = width + font.glyphs.get(text[pos], font.glyphs['?']).width
+        new_width += font.char_spacing
+
         if (text[pos] == '\n') or (new_width >= line_width):
             if align=='left':
                 offset=x0
@@ -28,19 +35,21 @@ def puttextblock(image: Image, x0, y0, line_width, text, *, font_color, font, sh
             elif align=='center':
                 offset=x0 +(line_width -width)//2
             puttext(image, offset, y0, text[start: pos], font_color=font_color, font=font, shadow_color=shadow_color)
-            y0 += font.line_height 
+            y0 += font.line_height
             start = pos if text[pos] != '\n' else pos + 1
             width = (new_width - width)
         else:
             width = new_width
-        
+
         pos += 1
 
 
 def puttext(image: Image, x0, y0, text, *, font_color, font: Font, shadow_color = None):
     # if font.full_color:
     #     raise NotImplementedError('Full Color fonts are not supported')
-    if isinstance(font_color, tuple):
+    if isinstance(font_color, int):
+        font_color = Color4f.from_int(font_color)
+    elif isinstance(font_color, tuple):
         font_color = Color4f.from_tuple(font_color)
     if isinstance(shadow_color, tuple):
         shadow_color = Color4f.from_tuple(shadow_color)
@@ -55,7 +64,7 @@ def puttext(image: Image, x0, y0, text, *, font_color, font: Font, shadow_color 
         if char == ' ':
             offset_x += 2
             continue
-        glyph = font.glyphs[char]
+        glyph = font.glyphs.get(char, font.glyphs['?'])
 
         for y in range(glyph.height):
             for x in range(glyph.width):
