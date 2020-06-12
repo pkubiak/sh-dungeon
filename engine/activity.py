@@ -10,7 +10,7 @@ class Activity:
     # Base activity methods
     def interact(self, event) -> bool:
         ...
-    
+
     def render(self, timestamp: float, screen) -> bool:
         ...
 
@@ -24,7 +24,7 @@ class Activity:
     # def on_return(self, value):
     #     pass
 
-# FIXME: pypy3 doesnt support Protocols
+# FIXME: pypy3 doesn't support Protocols
 
 class Event:
     type: str
@@ -68,7 +68,7 @@ class GameLoop:
         self.stack.append(activity)
 
     def switch(self, name: str, **kwargs):
-        # TODO: assert caller 
+        # TODO: assert caller
         assert name in self.REGISTER, f"Activity {name} not registered!"
         klass = self.REGISTER[name]
 
@@ -102,7 +102,7 @@ class GameLoop:
 
     def render(self, screen) -> bool:
         if self.stack:
-            return self.stack[-1].render(0.0, screen)
+            return self.stack[-1].render(time.time(), screen)
 
     def wait(self, fps):
         time.sleep(1.0 / fps)
