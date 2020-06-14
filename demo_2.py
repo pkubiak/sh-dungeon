@@ -23,6 +23,7 @@ class InventoryActivity:
             Input(1, 31+10, 50, 'Inventory', placeholder='City')
         ]
         self.focus = 0
+        self.items[0].has_focus = True
 
 
     def interact(self, event):

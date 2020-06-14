@@ -30,12 +30,10 @@ class Font:
 
         self.glyphs = self._detect_glyphs(image, glyphs)
         # self.glyphs = {}
-        
+
         self.foreground = Color4f.from_hex(image.meta['Foreground'])
-        print(self.foreground)
         self.shadow = Color4f.from_hex(image.meta['Shadow']) if 'Shadow' in image.meta else None 
-        
-        print(self.shadow)
+
         self.char_spacing = int(image.meta.get('CharSpacing', 0))
         self.line_height = int(image.meta.get('LineHeight', 0))
 
@@ -43,7 +41,6 @@ class Font:
     def _detect_glyphs(cls, image, glyphs):
         is_empty = []
         for y in range(image.height):
-        
             is_empty.append(all(image[i, y].a == 0 for i in range(image.width)))
 
         is_empty.append(True) # add guardian

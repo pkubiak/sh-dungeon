@@ -546,15 +546,14 @@ class ScrollingTextActivity:
 def default_loop(activity='MainMenu', **kwargs):
     loop = GameLoop()
     loop.enter(activity, **kwargs)
-    Keyboard.init()
 
     event = None
 
-    with SubPixelScreen(width=63, height=63) as screen:
+    with SubPixelScreen(width=63, height=63) as screen, Keyboard() as keyboard:
         while loop:
             while True:
                 if event is None:
-                    key = Keyboard.getch(block=False)
+                    key = keyboard.getch(block=False)
                     if key is None:
                         break
                     event = KeyboardEvent(key=key)
@@ -567,6 +566,7 @@ def default_loop(activity='MainMenu', **kwargs):
                 screen.sync()
 
             loop.wait(30)
+
 
 if __name__ == '__main__':
     default_loop()

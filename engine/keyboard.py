@@ -87,57 +87,58 @@ class Keyboard:
     Get user pressed keys in terminal in non-buffered way.
 
     @see: https://stackoverflow.com/a/2409034/5822988
+    @see: https://gist.github.com/justinmk/a5102f9a0c1810437885a04a07ef0a91
     """
 
     CSI = '\033['  # Control Sequence Introducer
     SS3 = '\033O'  # Single Shift Select of G3 Character Set
     EXTENDED_ANSI_SEQ = '\033[1;'
 
-    _initialized = False
-    _buffer = deque()
+    _owner = None
 
-    @classmethod
-    def _has_data(cls, wait: bool = False) -> bool:
+    def __init__(self):
+        self._buffer = deque()
+
+    def __enter__(self):
+        assert Keyboard._owner is None, "Keyboard already ???"
+        Keyboard._owner = self
+
+        self._original_settings = termios.tcgetattr(sys.stdin)
+        tty.setcbreak(sys.stdin.fileno())
+
+        return self
+
+    def __exit__(self, *exc):
+        assert Keyboard._owner == self
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self._original_settings)
+        delattr(self, '_original_settings')
+        Keyboard._owner = None
+
+    def _has_data(self, wait: bool = False) -> bool:
         """Check if there is some data in sys.stdin and wait for it if needed."""
         return select.select([sys.stdin], [], [], None if wait else 0) == ([sys.stdin], [], [])
 
-    @classmethod
-    def is_initialized(cls) -> bool:
-        return bool(getattr(cls, '_original_settings', None))
-
-    @classmethod
-    def init(cls):
-        cls._original_settings = termios.tcgetattr(sys.stdin)
-        tty.setcbreak(sys.stdin.fileno())
-
-    @classmethod
-    def close(cls):
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, cls._original_settings)
-        delattr(cls, '_original_settings')
-
-
-    @classmethod
-    def _read_into_buffer(cls):
+    def _read_into_buffer(self):
         """Read keyboard input in non-blocking way and parse it."""
         data = b''
         while True:
             data += os.read(sys.stdin.fileno(), 1024)
-            if not cls._has_data(False):
+            if not self._has_data(False):
                 break
 
         data = data.decode('utf-8')  # WARNING: to support unicode keys
 
         while data:
-            if data.startswith(cls.SS3):
+            if data.startswith(self.SS3):
                 key = Keys.SS3_MAPPING[ord(data[2])]
                 data = data[3:]
-            elif data.startswith(cls.EXTENDED_ANSI_SEQ):
+            elif data.startswith(self.EXTENDED_ANSI_SEQ):
                 assert len(data) >= 6
                 # TODO: data[4] is modifier keys and is not supported at that moment
                 key = Keys.CSI_TABLE[data[5]]
 
                 data = data[6:]
-            elif data.startswith(cls.CSI):
+            elif data.startswith(self.CSI):
                 assert len(data) >= 3
                 if '0' <= data[2] <= '9':
                     assert '~' in data
@@ -155,42 +156,38 @@ class Keyboard:
                 key = Keys.KEYS_TABLE.get(ord(data[0]), data[0])
                 data = data[1:]
 
-            cls._buffer.append(key)
+            self._buffer.append(key)
 
-    @classmethod
-    def getch(cls, block: bool = True) -> Optional[str]:
+    def getch(self, block: bool = True) -> Optional[str]:
         """
 
         @param block:
         """
-        if not cls.is_initialized():
-            raise RuntimeError('You must initialize Keyboard first!')
+        assert Keyboard._owner == self, 'You must initialize Keyboard first!'
 
-        if len(cls._buffer) > 0:
-            return cls._buffer.popleft()
+        if len(self._buffer) > 0:
+            return self._buffer.popleft()
 
-        if not cls._has_data(block):
+        if not self._has_data(block):
             return None
 
-        cls._read_into_buffer()  # put new keys into buffer
+        self._read_into_buffer()  # put new keys into buffer
 
-        return cls._buffer.popleft()
+        return self._buffer.popleft()
 
-    @classmethod
-    def clear(cls):
+    def clear(self):
         """Clear keyboard input buffer."""
-        if cls._has_data(False):
-            cls._read_into_buffer()
-        cls._buffer.clear()
+        if self._has_data(False):
+            self._read_into_buffer()
+        self._buffer.clear()
 
 
 if __name__ == '__main__':
-    Keyboard.init()
 
-    while True:
-        key = Keyboard.getch(True)
-        print(f"Pressed: {key}")
-        if key == Keys.ESC:
-            break
+    with Keyboard() as keyboard:
+        while True:
+            key = keyboard.getch(True)
+            print(f"Pressed: {key}")
+            if key == Keys.ESC:
+                break
 
-    Keyboard.close()
