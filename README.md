@@ -16,9 +16,14 @@ Pypy3 is recommended python runtime.
 
 
 ## Implementation status ##
-- [x] Keyboard handling in terminal ([keyboard.py](https://github.com/pkubiak/sh-dungeon/blob/master/keyboard.py))
-- [x] Full color image display in terminal (using ANSI escape sequences: [screen.py](https://github.com/pkubiak/sh-dungeon/blob/master/screen.py))
-- [x] PNM image loading ([image.png](https://github.com/pkubiak/sh-dungeon/blob/master/rt/image.py))
+- [x] Keyboard handling in terminal ([keyboard.py](https://github.com/pkubiak/sh-dungeon/blob/master/engine/keyboard.py))
+- [x] Full color image display in terminal (using ANSI escape sequences: [screen.py](https://github.com/pkubiak/sh-dungeon/blob/master/engine/screen.py))
+- [x] PNM/PAM image loading ([image.py](https://github.com/pkubiak/sh-dungeon/blob/master/engine/rt/image.py))
+- [x] Many activities system (via [State Pattern](http://gameprogrammingpatterns.com/state.html)): [activity.py](https://github.com/pkubiak/sh-dungeon/blob/master/engine/activity.py)
+  - [x] Main Menu
+  - [x] Game
+  - [ ] Inventory 
+  - [ ] ...
 - [ ] RayTracer system
   - [x] Cameras
     - [x] Ortographic
@@ -51,11 +56,7 @@ Pypy3 is recommended python runtime.
   - [x] Simple maze demo
   - [x] Simple turn based animations
   - [ ] Level stored in files
-  - [ ] Many activities system (via [State Pattern](http://gameprogrammingpatterns.com/state.html))
-    - [ ] Main Menu
-    - [ ] Game
-    - [ ] Inventory 
-    - [ ] ...
+
   - [x] Sprites rendering (npc, enemies, torches, ...)
   - [ ] Interaction with environment (opening doors, using staircase)
   - [x] User handled items (sword, magic staff, ...)
