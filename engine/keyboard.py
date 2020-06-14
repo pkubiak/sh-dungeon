@@ -42,6 +42,7 @@ class Keys:
 
 
     KEYS_TABLE = {
+        8: BACKSPACE,
         9: TAB,
         10: ENTER,
         27: ESC,
@@ -57,8 +58,10 @@ class Keys:
     }
 
     CSI_TABLE = {
+        '1': HOME,
         '2': INSERT,
         '3': DELETE,
+        '4': END,
         '5': PAGE_UP,
         '6': PAGE_DOWN,
         '15': F5,
