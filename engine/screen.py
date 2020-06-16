@@ -3,49 +3,6 @@ import sys
 from typing import Tuple, Optional
 
 from .rt.image import Image, Color4f
-# from .font import Font, BOXY_BOLD_FONT_PLUS
-
-
-wrt = sys.stdout.write
-
-def lighten(color, scale):
-    r, g, b, blink = color
-
-    factor = 1.0 + scale
-    return (
-        max(min(255, int(r * factor)), 0),
-        max(min(255, int(g * factor)), 0),
-        max(min(255, int(b * factor)), 0),
-        blink
-    )
-
-DEFAULT_FONT={
-    ' ': (1, [0, 0, 0, 0, 0]),
-    '0': (3, [7, 5, 5, 5, 7]),
-    '1': (2, [3, 1, 1, 1, 1]),
-    '2': (3, [7, 1, 7, 4, 7]),
-    '3': (3, [7, 1, 3, 1, 7]),
-    '4': (3, [4, 5, 7, 1, 1]),
-    '5': (3, [7, 4, 7, 1, 7]),
-    '6': (3, [7, 4, 7, 5, 7]),
-    '7': (3, [7, 1, 1, 1, 1]),
-    '8': (3, [7, 5, 7, 5, 7]),
-    '9': (3, [7, 5, 7, 1, 7]),
-    'W': (5, [17, 17, 21, 21, 10]),
-    'E': (3, [7, 4, 6, 4, 7]),
-    'N': (4, [9, 13, 15, 11, 9]),
-    'S': (3, [3, 4, 2, 1, 6]),
-    '/': (3, [1, 1, 2, 4, 4]),
-    '*': (7, [
-        0b0110110,
-        0b1111111,
-        0b0111110,
-        0b0011100,
-        0b0001000,
-    ]),
-}
-
-
 
 # class Screen:
 #     BLOCK = '  '#██'
@@ -168,6 +125,8 @@ DEFAULT_FONT={
 #                 for x in range(self.width):
 #                     output.write(bytes(self.data[y][x][:3]))
 
+wrt = sys.stdout.write
+
 
 class SubPixelScreen:
     @property
@@ -198,21 +157,19 @@ class SubPixelScreen:
     def sync(self):
         #wrt("\033[2J")  # clear entire screen
         for y in range(self.canvas._height//2):
-            # FIXME: last row is omited for odd heights
-
             wrt("\033[%d;%dH" % (1 + y+self._offset[1], 1 + 2 * self._offset[0]))  # move cursor to start of yth row
             for x in range(self.canvas._width):
                 r, g, b = self.canvas[x, 2*y].as_3i
                 r2, g2, b2 = self.canvas[x, 2*y+1].as_3i
-
-                # if blink:
-                #     r2, g2, b2, _ = lighten((r, g, b, True),0.6)
-                #     wrt(f"\033[5m\033[48;2;{r2};{g2};{b2}m") # blinking color
-
-                wrt(f"\033[48;2;{r};{g};{b}m\033[38;2;{r2};{g2};{b2}m▄")  # print block in given RGB color
+                wrt(f"\033[38;2;{r};{g};{b}m\033[48;2;{r2};{g2};{b2}m▀")  # print block in given RGB color
             wrt('\033[0m')
-            sys.stdout.flush()
+
+        if self.canvas._height % 2:
+            wrt("\033[%d;%dH" % (1+self.canvas._height//2+self._offset[1], 1 + 2 * self._offset[0]))
+            for x in range(self.canvas._width):
+                r, g, b = self.canvas[x, self.canvas._height-1].as_3i
+                wrt(f"\033[38;2;{r};{g};{b}m▀")
+            wrt('\033[0m')
+
         wrt("\033[H")
         sys.stdout.flush()
-
-        # self.save_to_pnm(f'/tmp/out-{datetime.now()}.pnm')
