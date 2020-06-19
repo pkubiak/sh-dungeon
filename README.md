@@ -24,6 +24,11 @@ Pypy3 is recommended python runtime.
   - [x] Game
   - [ ] Inventory 
   - [ ] ...
+- [ ] GUI
+  - [ ] Inputs
+  - [ ] Radio/Check button
+  - [ ] Select box
+  - [ ] Scrollarea
 - [ ] RayTracer system
   - [x] Cameras
     - [x] Ortographic
