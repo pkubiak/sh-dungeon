@@ -5,6 +5,19 @@ Project use python reimplementation of my previous [raytracer](https://github.co
 
 Pypy3 is recommended python runtime.
 
+<a href="https://www.youtube.com/watch?v=wZLqNSs_UIY">
+  <img src="https://pawelkubiak.me/data/sh-dungeon.webp"><br>
+  Check Gameplay demo on YouTube
+</a>
+
+
+## How to Run? ##
+```bash
+git clone https://github.com/pkubiak/sh-dungeon.git
+cd sh-dungeon
+pypy3 dungeon.py
+```
+
 ## Features ##
 - FullColor 24bit display in terminal
 - No external package dependencies
